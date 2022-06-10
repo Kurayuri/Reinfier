@@ -1,14 +1,36 @@
 # Reinfier
-A universal verification framework system for deep reinforcement learning, which combines the formal verification of deep neural network with bounded model checking algorithm and k-induction algorithm to verify the properties of deep reinforcement learning or give counterexamples.
+A universal verification framework system for deep reinforcement learning, which combines the formal verification of deep neural network with bounded model checking algorithm and k-induction algorithm to verify the properties of deep reinforcement learning or give counterexamples.  
+Source code is available at [Reinfier](https://github.com/Kurayuri/Reinfier).
 ## Installation
-Reinfier requires python>=3.8. To install Reinfier, run:  
-```shell
-pip install reinfier
-```
 Reinfier is based on [DNNV](https://github.com/dlshriver/dnnv), which requrires verifiers of DNN ([Reluplex](https://github.com/guykatzz/ReluplexCav2017), [planet](https://github.com/progirep/planet), [MIPVerify.jl](https://github.com/vtjeng/MIPVerify.jl), [Neurify](https://github.com/tcwangshiqi-columbia/Neurify), [ERAN](https://github.com/eth-sri/eran), [BaB](https://github.com/oval-group/PLNN-verification), [marabou](https://github.com/NeuralNetworkVerification/Marabou), [nnenum](https://github.com/stanleybak/nnenum), [verinet](https://vas.doc.ic.ac.uk/software/neural/)).  
+
+Building above verifers requires following packages of system:  
+```shell
+cmake
+python-is-python3
+python3.8-venv
+```
+
+DNNV and Reinfier are recommended to install with a python virtual environment.  
+```shell
+python -m venv testenv
+cd testenv
+source ./bin/activate
+```
+Currently, DNNV main branch on [PyPI](https://pypi.org/project/dnnv/0.5.1/) has bug caused by dependency. It is better to intall it from source code. Run:  
+```shell
+pip install git+https://github.com/dlshriver/DNNV.git@develop
+```
+
+
 To install any of the supported verifiers, run:
 ```shell
 dnnv_manage install reluplex planet mipverify neurify eran bab marabou nnenum verinet
+```
+
+Reinfier requires python>=3.8. To install Reinfier, run:  
+```shell
+pip install reinfier
 ```
 
 Usage sample files to test:  
