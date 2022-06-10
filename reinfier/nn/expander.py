@@ -1,4 +1,5 @@
-from . import onnx_runner
+from .  import onnx_runner
+from .. import utils
 import numpy as np
 import onnx
 import copy
@@ -8,8 +9,15 @@ def convert_name(name: str, step: int):
     return name+"@"+str(step)
 
 
-def unwind_network(network: str, k: int):
-    model = onnx.load(network)
+def unwind_network(network, k: int):
+    if isinstance(network,str):
+        model = onnx.load(network)
+    else:
+        model=network
+        network="tmp.onnx"
+    origin_filename=network
+    network=utils.utils.get_filename_from_path(network)
+        
     # Check the model
     try:
         onnx.checker.check_model(model)
@@ -217,7 +225,7 @@ def unwind_network(network: str, k: int):
     print(unwinded_network_filename)
     onnx.save(model, unwinded_network_filename)
 
-    onnx_runner.run_onnx(network, np.array(
+    onnx_runner.run_onnx(origin_filename, np.array(
         [[1.0]*graph_input_length], dtype=np.float32))
     onnx_runner.run_onnx(unwinded_network_filename, np.array(
         [[1.0]*graph_input_length*k], dtype=np.float32))
