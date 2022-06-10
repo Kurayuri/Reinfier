@@ -1,0 +1,24 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "reinfier"
+authors = [{name = "Kurayuri", email = "Kurayuri@outlook.com"}]
+readme = "README.md"
+license = {file = "LICENSE"}
+classifiers = ["License :: OSI Approved :: MIT License"]
+dynamic = ["version", "description"]
+requires-python = ">=3.8"
+keywords = ["DRL", "DNN", "verification"]
+
+dependencies = [
+    "dnnv>=0.5.1",
+    "onnxruntime>=1.11.0",
+    "astpretty>=2.1.0",
+    "astor>=0.8.1",
+    "yapf>=0.32.0"
+]
+
+[project.urls]
+Home = "https://github.com/Kurayuri/Reinfier"

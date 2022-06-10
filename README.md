@@ -1,0 +1,2 @@
+# Reinfier
+A general verification framework system for deep reinforcement learning, which combines the formal verification of deep neural network with bounded model checking algorithm and k-induction algorithm to verify the properties of deep reinforcement learning or give counterexamples.
