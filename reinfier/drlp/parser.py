@@ -1,6 +1,6 @@
+from .. import utils
 import ast
-from distutils.command.bdist import show_formats
-from textwrap import indent
+
 import astpretty
 import copy
 import numpy
@@ -8,6 +8,7 @@ import yapf
 import os
 import astor
 import sys
+
 
 src = '''
 y_size=1
@@ -469,7 +470,8 @@ def parse_drlp(drlp: str, unwinding: int):
         with open(filename) as f:
             drlp = f.read()
     except Exception:
-        filename = "drlp"
+        filename = "tmp.drlp"
+    filename=utils.utils.get_filename_from_path(filename)
 
     try:
         drlp = drlp.split('\n# Exp\n')
@@ -589,6 +591,8 @@ def parse_drlp_induction(drlp: str, unwinding: int):
             drlp = f.read()
     except Exception:
         filename = "tmp.drlp"
+    filename=utils.utils.get_filename_from_path(filename)
+    
 
     try:
         drlp = drlp.split('\n# Exp\n')
