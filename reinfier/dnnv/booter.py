@@ -2,6 +2,7 @@ import os
 import numpy as np
 import subprocess
 from .. import nn
+import pdb
 
 
 def boot_dnnv(network: str, property: str, verifier: str = "eran",
