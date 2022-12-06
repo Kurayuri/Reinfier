@@ -1,9 +1,9 @@
 from .  import onnx_runner
-from .. import utils
+from .. import util
+from .. import CONSTANT
 import numpy as np
 import onnx
 import copy
-
 
 def convert_name(name: str, step: int):
     return name+"@"+str(step)
@@ -16,15 +16,15 @@ def unwind_network(network, k: int):
         model=network
         network="tmp.onnx"
     origin_filename=network
-    network=utils.utils.get_filename_from_path(network)
+    network=util.util.get_filename_from_path(network)
         
     # Check the model
     try:
         onnx.checker.check_model(model)
     except onnx.checker.ValidationError as e:
-        print('The model is invalid: %s' % e)
+        util.log('The model is invalid: %s' % e)
     else:
-        print('The model is valid!')
+        util.log('The model is valid!',level=CONSTANT.INFO)
 
     graph = model.graph
     graph_node = graph.node
@@ -182,7 +182,7 @@ def unwind_network(network, k: int):
                 prev_concat_name = concat_zero_matrix_name
             if step == k-1:
                 concat_name = graph_output.name
-            print(prev_concat_name, concat_name, merge_name)
+            # print(prev_concat_name, concat_name, merge_name)
             concat_node = onnx.helper.make_node(
                 name=concat_name,
                 op_type="Add",
@@ -211,18 +211,18 @@ def unwind_network(network, k: int):
 
         # graph.output.remove(graph_output)
     model.opset_import[0].version = 9
-    print(onnx.helper.printable_graph(model.graph))
+    util.log(onnx.helper.printable_graph(model.graph))
     # print(graph.input)
     try:
         onnx.checker.check_model(model)
     except onnx.checker.ValidationError as e:
-        print('The model is invalid: %s' % e)
+        util.log('Expanded model is invalid: %s' % e,level=CONSTANT.CRITICAL)
     else:
-        print('The model is valid!')
+        util.log('Expanded model is valid!',level=CONSTANT.INFO)
 
     filename = network.rsplit(".")
     unwinded_network_filename = filename[0]+"_step_%d" % (k)+".onnx"
-    print(unwinded_network_filename)
+    util.log(unwinded_network_filename)
     onnx.save(model, unwinded_network_filename)
 
     onnx_runner.run_onnx(origin_filename, np.array(

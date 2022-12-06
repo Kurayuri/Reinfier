@@ -1,5 +1,7 @@
 import onnxruntime
 import numpy as np
+from .. import CONSTANT
+from .. import util
 
 # onnxruntime.set_default_logger_severity(0)
 
@@ -15,8 +17,8 @@ def run_onnx(network,input):
     output = session.run([], {input_name: input_array})
     # with open("sss.log",'a') as f:
     #     f.write(str(input_array)+"\n"+str(output)+"\n")
-    print("With Input:\n",input_array,"\nOutput:\n",output)
+    util.log("With Input:\n",input_array,"\nOutput:\n",output,level=CONSTANT.WARNING)
     return output
-
+ 
 if __name__=="__main__":
     run_onnx("test01.onnx",np.array([[-1,0.5]],dtype=np.float32))

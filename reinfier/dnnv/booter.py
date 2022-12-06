@@ -3,7 +3,7 @@ import os
 import numpy as np
 import subprocess
 from .. import nn
-from .. import utils
+from .. import util
 import re
 import sys
 from dnnv.__main__ import _main as dnnv_main
@@ -31,15 +31,34 @@ def boot_dnnv(network: str, property: str, verifier: str = "eran",
     sys.argv = cmd
     sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])
 
-    dnnv_out=open("dnnv_out","w") 
-    with utils.io.output_wrapper(dnnv_out):
+    dnnv_out_filename="dnnv.out"
+    dnnv_out=open(dnnv_out_filename,"w") 
+    with util.io.output_wrapper(dnnv_out):
         dnnv_main()
 
     dnnv_out.close()
-    with open("dnnv_out","r") as f:
+    with open(dnnv_out_filename,"r") as f:
         x=f.read()
-    os.remove("dnnv_out")
+    os.remove(dnnv_out_filename)
     x = x.split("\n")
+
+    # # Call DNNV OLD
+    # myenv = os.environ.copy()
+    # if 'VIRTUAL_ENV' in os.environ:
+    #     myenv['PATH'] = ':'.join(
+    #         [x for x in os.environ['PATH'].split(':')
+    #             if x != os.path.join(os.environ['VIRTUAL_ENV'], 'bin')])
+
+    # print(" ".join(cmd))
+
+    # try:
+    #     x = subprocess.check_output(cmd)
+    # except:
+    #     x = b""
+    #     pass
+
+    # x = str(x, 'utf-8')
+    # print(x)
 
     # Check DNNV output
     time = float('inf')

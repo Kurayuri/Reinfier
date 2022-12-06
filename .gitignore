@@ -135,5 +135,5 @@ share/
 verifier_virtualenvs/
 pyvenv.cfg
 
-*
-!reinfier
+/*
+!reinfier/

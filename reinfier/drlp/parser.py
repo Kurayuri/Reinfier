@@ -1,4 +1,5 @@
-from .. import utils
+from .. import util
+from .. import CONSTANT
 import ast
 
 import astpretty
@@ -471,7 +472,7 @@ def parse_drlp(drlp: str, unwinding: int):
             drlp = f.read()
     except Exception:
         filename = "tmp.drlp"
-    filename=utils.utils.get_filename_from_path(filename)
+    filename=util.util.get_filename_from_path(filename)
 
     try:
         drlp = drlp.split('\n# Exp\n')
@@ -562,10 +563,10 @@ def parse_drlp(drlp: str, unwinding: int):
         ),
         forall_node]
 
-    print("input size: %d\noutput size: %d" %
+    util.log("input size: %d\noutput size: %d" %
           (transformer_1.input_size, transformer_1.output_size))
 
-    print("\n"*2)
+    util.log("\n"*2)
 
     code = astor.to_source(dnnp_node)
 
@@ -574,13 +575,13 @@ def parse_drlp(drlp: str, unwinding: int):
     code, changed = yapf.yapflib.yapf_api.FormatCode(
         code, style_config="./style.style_config")
     os.remove("./style.style_config")
-    print(code)
+    util.log(code)
 
     filename = filename.rsplit(".")
     unwinded_dnnp_filename = filename[0]+"_step_%d" % (unwinding)+".dnnp"
     with open(unwinded_dnnp_filename, "w") as f:
         f.write(code)
-    print(unwinded_dnnp_filename)
+    util.log(unwinded_dnnp_filename)
     return code, unwinded_dnnp_filename
 
 
@@ -591,7 +592,7 @@ def parse_drlp_induction(drlp: str, unwinding: int):
             drlp = f.read()
     except Exception:
         filename = "tmp.drlp"
-    filename=utils.utils.get_filename_from_path(filename)
+    filename=util.util.get_filename_from_path(filename)
     
 
     try:
@@ -719,10 +720,10 @@ def parse_drlp_induction(drlp: str, unwinding: int):
         ),
         forall_node]
 
-    print("input size: %d\noutput size: %d" %
+    util.log("input size: %d\noutput size: %d" %
           (input_size, output_size))
 
-    print("\n"*2)
+    util.log("\n"*2)
 
 
     code = astor.to_source(dnnp_node)
@@ -732,13 +733,13 @@ def parse_drlp_induction(drlp: str, unwinding: int):
     code, changed = yapf.yapflib.yapf_api.FormatCode(
         code, style_config="./style.style_config")
     os.remove("./style.style_config")
-    print(code)
+    util.log(code)
 
     filename = filename.rsplit(".")
     unwinded_dnnp_filename = filename[0]+"_induction_step_%d" % (unwinding)+".dnnp"
     with open(unwinded_dnnp_filename, "w") as f:
         f.write(code)
-    print(unwinded_dnnp_filename)
+    util.log(unwinded_dnnp_filename)
     return code, unwinded_dnnp_filename
 
 
