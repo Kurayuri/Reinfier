@@ -2,13 +2,12 @@ import json
 from .. import dnnv
 from .. import nn
 from .. import drlp
+from .. import CONSTANT
 
 
 def select_verifier(networks, properties, verifiers: list = None, network_alias: str = "N"):
     if verifiers == None:
-        verifiers = ['bab', 'eran', 'marabou', 'mipverify',
-                     'neurify', 'nnenum', 'planet', 'reluplex', 'verinet']
-    
+        verifiers = CONSTANT.VERIFIER
     
     if isinstance(networks,str) and isinstance(properties,str):
         network=networks
