@@ -44,8 +44,8 @@ class DRLPParsingError(Exception):
 
 
 class DRLPTransformer(ast.NodeTransformer):
-    def __init__(self, unwinding):
-        self.unwinding = unwinding
+    def __init__(self, depth):
+        self.depth = depth
 
         self.input_size = None
         self.output_size = None
@@ -100,8 +100,8 @@ class DRLPTransformer(ast.NodeTransformer):
 
 
 class DRLPTransformer_1(DRLPTransformer):
-    def __init__(self, unwinding):
-        super().__init__(unwinding)
+    def __init__(self, depth):
+        super().__init__(depth)
 
     def visit_Assign(self, node: ast.Assign):
         node = self.generic_visit(node)
@@ -214,7 +214,7 @@ class DRLPTransformer_1(DRLPTransformer):
     def visit_Name(self, node: ast.Name):
         if node.id == self.unwinding_id:
             return ast.Constant(
-                value=self.unwinding
+                value=self.depth
             )
         if node.id in self.iter_ids:
             return ast.Constant(
@@ -246,8 +246,8 @@ class DRLPTransformer_1(DRLPTransformer):
 
 
 class DRLPTransformer_2(DRLPTransformer):
-    def __init__(self, unwinding, input_size, output_size):
-        super().__init__(unwinding)
+    def __init__(self, depth, input_size, output_size):
+        super().__init__(depth)
         self.input_size = input_size
         self.output_size = output_size
 
@@ -382,8 +382,8 @@ class DRLPTransformer_2(DRLPTransformer):
 
 # Name and List Transform
 class DRLPTransformer_3(DRLPTransformer):
-    def __init__(self, unwinding):
-        super().__init__(unwinding)
+    def __init__(self, depth):
+        super().__init__(depth)
 
     def visit_Name(self, node: ast.Name):
         if node.id == self.input_id:
@@ -413,8 +413,8 @@ class DRLPTransformer_3(DRLPTransformer):
 
 # Fix Input and Output Subscript Size Transform (k-induction)
 class DRLPTransformer_4(DRLPTransformer):
-    def __init__(self, unwinding, input_size, output_size,fix_subscript=True):
-        super().__init__(unwinding)
+    def __init__(self, depth, input_size, output_size,fix_subscript=True):
+        super().__init__(depth)
         self.input_size = input_size
         self.output_size = output_size
         self.fix_subsript=fix_subscript
@@ -450,13 +450,13 @@ class DRLPTransformer_4(DRLPTransformer):
             if node.id == self.dnnp_input_id+self.dnnp_shape_of_dim_0:
                 return ast.Name(
                     id=node.id +
-                    "[0:%d]" % (self.unwinding*self.input_size),
+                    "[0:%d]" % (self.depth*self.input_size),
                     ctx=ast.Load()
                 )
             if node.id == self.dnnp_output_id+self.dnnp_shape_of_dim_0:
                 return ast.Name(
                     id=node.id +
-                    "[0:%d]" % (self.unwinding*self.output_size),
+                    "[0:%d]" % (self.depth*self.output_size),
                     ctx=ast.Load()
                 )
         return node
@@ -465,7 +465,7 @@ class DRLPTransformer_4(DRLPTransformer):
         return node
 
 
-def parse_drlp(drlp: str, unwinding: int):
+def parse_drlp(drlp: str, depth: int):
     filename = drlp
     try:
         with open(filename) as f:
@@ -489,21 +489,21 @@ def parse_drlp(drlp: str, unwinding: int):
 
     # astpretty.pprint(ast_root_p, show_offsets=False)
 
-    transformer = DRLPTransformer(unwinding)
+    transformer = DRLPTransformer(depth)
 
-    transformer_1 = DRLPTransformer_1(unwinding)
+    transformer_1 = DRLPTransformer_1(depth)
     ast_root_p = transformer_1.visit(ast_root_p)
     ast_root_q = transformer_1.visit(ast_root_q)
 
     transformer_2 = DRLPTransformer_2(
-        unwinding,
+        depth,
         transformer_1.input_size,
         transformer_1.output_size
     )
     ast_root_p = transformer_2.visit(ast_root_p)
     ast_root_q = transformer_2.visit(ast_root_q)
 
-    transformer_3 = DRLPTransformer_3(unwinding)
+    transformer_3 = DRLPTransformer_3(depth)
     ast_root_p = transformer_3.visit(ast_root_p)
     ast_root_q = transformer_3.visit(ast_root_q)
 
@@ -577,15 +577,14 @@ def parse_drlp(drlp: str, unwinding: int):
     os.remove("./style.style_config")
     util.log(code)
 
-    filename = filename.rsplit(".")
-    unwinded_dnnp_filename = filename[0]+"_step_%d" % (unwinding)+".dnnp"
+    unwinded_dnnp_filename = util.util.get_savepath(filename,depth,"dnnp")
     with open(unwinded_dnnp_filename, "w") as f:
         f.write(code)
     util.log(unwinded_dnnp_filename)
     return code, unwinded_dnnp_filename
 
 
-def parse_drlp_induction(drlp: str, unwinding: int):
+def parse_drlp_induction(drlp: str, depth: int):
     filename = drlp
     try:
         with open(filename) as f:
@@ -605,19 +604,19 @@ def parse_drlp_induction(drlp: str, unwinding: int):
     drlp_p = drlp[0]
     drlp_q = drlp[1]
 
-    unwinding += 1
+    depth += 1
     ast_root_p = ast.parse(drlp_p)
     ast_root_q = ast.parse(drlp_q)
     # astpretty.pprint(ast_root_p, show_offsets=False)
 
-    transformer = DRLPTransformer(unwinding)
+    transformer = DRLPTransformer(depth)
 
-    transformer_1 = DRLPTransformer_1(unwinding)
+    transformer_1 = DRLPTransformer_1(depth)
     ast_root_p = transformer_1.visit(ast_root_p)
     ast_root_q = transformer_1.visit(ast_root_q)
 
     transformer_2 = DRLPTransformer_2(
-        unwinding,
+        depth,
         transformer_1.input_size,
         transformer_1.output_size
     )
@@ -626,36 +625,36 @@ def parse_drlp_induction(drlp: str, unwinding: int):
     ast_root_p = transformer_2.visit(ast_root_p)
     ast_root_q = transformer_2.visit(ast_root_q)
 
-    transformer_3 = DRLPTransformer_3(unwinding)
+    transformer_3 = DRLPTransformer_3(depth)
     ast_root_p = transformer_3.visit(ast_root_p)
     ast_root_q = transformer_3.visit(ast_root_q)
 
-    transformer_4 = DRLPTransformer_4(unwinding, input_size, output_size,False)
+    transformer_4 = DRLPTransformer_4(depth, input_size, output_size,False)
     ast_root_p = transformer_4.visit(ast_root_p)
 
     ast_root_p = ast.fix_missing_locations(ast_root_p)
     ast_root_q = ast.fix_missing_locations(ast_root_q)
 
     # k
-    unwinding -= 1
+    depth -= 1
     ast_root_q_ = ast.parse(drlp_q)
-    t = DRLPTransformer(unwinding)
+    t = DRLPTransformer(depth)
 
-    t_1 = DRLPTransformer_1(unwinding)
+    t_1 = DRLPTransformer_1(depth)
     ast_root_q_ = t_1.visit(ast_root_q_)
 
     t_2 = DRLPTransformer_2(
-        unwinding,
+        depth,
         input_size,
         output_size
     )
     ast_root_q_ = t_2.visit(ast_root_q_)
 
-    t_3 = DRLPTransformer_3(unwinding)
+    t_3 = DRLPTransformer_3(depth)
     ast_root_q_ = t_3.visit(ast_root_q_)
 
     t_4 = DRLPTransformer_4(
-        unwinding,
+        depth,
         input_size,
         output_size,
         True
@@ -735,8 +734,7 @@ def parse_drlp_induction(drlp: str, unwinding: int):
     os.remove("./style.style_config")
     util.log(code)
 
-    filename = filename.rsplit(".")
-    unwinded_dnnp_filename = filename[0]+"_induction_step_%d" % (unwinding)+".dnnp"
+    unwinded_dnnp_filename = util.util.get_savepath(filename+"_induction",depth,"dnnp")
     with open(unwinded_dnnp_filename, "w") as f:
         f.write(code)
     util.log(unwinded_dnnp_filename)

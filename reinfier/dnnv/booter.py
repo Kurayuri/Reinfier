@@ -13,7 +13,9 @@ from dnnv.__main__ import _main as dnnv_main
 def boot_dnnv(network: str, property: str, verifier: str = "eran",
               network_alias: str = "N", violation: str = None):
     if violation == None:
-        violation = "_".join([network, property, "violation.npy"])
+        violation = util.util.get_savepath([network, property],None,"npy")
+        # violation = "_".join([network, property, "violation.npy"])
+        # violation = "_".join([util.util.get_filename_from_path(network), util.util.get_filename_from_path(property), "violation.npy"])
 
     verifier = "--"+verifier
     dnnv = "dnnv"

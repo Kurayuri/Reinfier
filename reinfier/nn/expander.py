@@ -255,8 +255,8 @@ def unwind_network(network, k: int,branchable=False):
     else:
         util.log('Expanded model is valid!',level=CONSTANT.INFO)
 
-    filename = network.rsplit(".")
-    unwinded_network_filename = filename[0]+"_step_%d" % (k)+".onnx"
+    filename = network
+    unwinded_network_filename = util.util.get_savepath(filename,k,"onnx")
     util.log(unwinded_network_filename)
     onnx.save(model, unwinded_network_filename)
 

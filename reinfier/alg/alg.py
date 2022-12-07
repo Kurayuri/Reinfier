@@ -5,7 +5,7 @@ from .. import drlp
 from .. import CONSTANT
 
 def logging(*args):
-    with open("log.txt",'a') as f:
+    with open("log.txt",'a+') as f:
         args=[str(arg) for arg in args]
         f.write(" ".join(args)+"\n")
 
@@ -13,6 +13,7 @@ def is_branchable(verifier):
     return verifier==CONSTANT.MARABOU
 
 def bmc(network,drlp_txt,k_max=10,verifier=None,k_min=1):
+    logging(network,drlp_txt,"bmc")
     if verifier is None:
         verifier=selector.select_verifier(network, drlp_txt)
 
@@ -20,6 +21,7 @@ def bmc(network,drlp_txt,k_max=10,verifier=None,k_min=1):
         dnn=nn.expander.unwind_network(network,k,branchable=is_branchable(verifier))
         code,dnnp=drlp.parser.parse_drlp(drlp_txt,k)
         runable, result, time=dnnv.booter.boot_dnnv(dnn,dnnp,verifier)
+        logging(k,runable, result, time,"base")
         if result == False:
             return k,False
     return k_max,None
