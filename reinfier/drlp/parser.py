@@ -734,7 +734,7 @@ def parse_drlp_induction(drlp: str, depth: int):
     os.remove("./style.style_config")
     util.log(code)
 
-    unwinded_dnnp_filename = util.util.get_savepath(filename+"_induction",depth,"dnnp")
+    unwinded_dnnp_filename = util.util.get_savepath(filename.rsplit(".")[0]+"!ind",depth,"dnnp")
     with open(unwinded_dnnp_filename, "w") as f:
         f.write(code)
     util.log(unwinded_dnnp_filename)
