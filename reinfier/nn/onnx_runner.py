@@ -18,7 +18,7 @@ def run_onnx(network, input):
     output = session.run([], {input_name: input_array})
     # with open("sss.log",'a') as f:
     #     f.write(str(input_array)+"\n"+str(output)+"\n")
-    util.log("With Input:\n", input_array, "\nOutput:\n", output, level=CONSTANT.WARNING)
+    util.log("With Input:\n", input_array, "\nOutput:\n", output, level=CONSTANT.INFO)
     return output
 
 

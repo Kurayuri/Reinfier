@@ -566,7 +566,6 @@ def parse_drlp(drlp: str, depth: int):
     util.log("input size: %d\noutput size: %d" %
           (transformer_1.input_size, transformer_1.output_size))
 
-    util.log("\n"*2)
 
     code = astor.to_source(dnnp_node)
 
@@ -575,12 +574,14 @@ def parse_drlp(drlp: str, depth: int):
     code, changed = yapf.yapflib.yapf_api.FormatCode(
         code, style_config="./style.style_config")
     os.remove("./style.style_config")
+    util.log("\n## DNNP:")
     util.log(code)
 
     unwinded_dnnp_filename = util.util.get_savepath(filename,depth,"dnnp")
     with open(unwinded_dnnp_filename, "w") as f:
         f.write(code)
-    util.log(unwinded_dnnp_filename)
+    util.log("\n## DNNP Filename:",level=CONSTANT.INFO)
+    util.log(unwinded_dnnp_filename,level=CONSTANT.INFO)
     return code, unwinded_dnnp_filename
 
 
@@ -722,8 +723,6 @@ def parse_drlp_induction(drlp: str, depth: int):
     util.log("input size: %d\noutput size: %d" %
           (input_size, output_size))
 
-    util.log("\n"*2)
-
 
     code = astor.to_source(dnnp_node)
 
@@ -732,12 +731,14 @@ def parse_drlp_induction(drlp: str, depth: int):
     code, changed = yapf.yapflib.yapf_api.FormatCode(
         code, style_config="./style.style_config")
     os.remove("./style.style_config")
+    util.log("\n## DNNP:")
     util.log(code)
 
     unwinded_dnnp_filename = util.util.get_savepath(filename.rsplit(".")[0]+"!ind",depth,"dnnp")
     with open(unwinded_dnnp_filename, "w") as f:
         f.write(code)
-    util.log(unwinded_dnnp_filename)
+    util.log("\n## DNNP Filename:",level=CONSTANT.INFO)
+    util.log(unwinded_dnnp_filename,level=CONSTANT.INFO)
     return code, unwinded_dnnp_filename
 
 

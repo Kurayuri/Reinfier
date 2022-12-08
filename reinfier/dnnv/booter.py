@@ -5,15 +5,68 @@ import subprocess
 from .. import nn
 from .. import util
 from .. import CONSTANT
+from .. import Setting
+
 import re
 import sys
 # from dnnv.__main__ import _main as dnnv_main
 
 
-def is_retry(txt: str):
+def is_to_retry(txt: str):
     if "Assertion `fixval != -kHighsInf' failed" in txt:
         return True
     return False
+
+
+def log_dnnv_output(stdout, stderr,ans_gotten):
+    if Setting.LogLevel == CONSTANT.DEBUG:
+        util.log(("## Error:"), level=CONSTANT.INFO)
+        util.log(("\n".join(stderr)), level=CONSTANT.DEBUG)
+        util.log(("## Info:"), level=CONSTANT.INFO)
+        util.log(("\n".join(stdout)), level=CONSTANT.DEBUG)
+
+    else:
+        if ans_gotten:
+            util.log(("## Info:"), level=CONSTANT.INFO)
+            util.log(("\n".join(stdout[:-4])), level=CONSTANT.DEBUG)
+            util.log(("\n".join(stdout[-4:])), level=CONSTANT.INFO)
+        else:
+            util.log(("## Error:"), level=CONSTANT.INFO)
+            util.log(("\n".join(stderr[:-5])), level=CONSTANT.DEBUG)
+            util.log(("\n".join(stderr[-5:])), level=CONSTANT.INFO)
+
+
+def extract_stdout_ans(stdout):
+    time = float('inf')
+    result = False
+    runable = False
+    try:
+        ans_gotten = False
+        for i in range(len(stdout) - 1, -1, -1):
+            if "time: " in stdout[i]:
+                line = stdout[i]
+                line = line.split(": ")
+                time = float(line[1])
+                ans_gotten = True
+            elif "result: " in stdout[i]:
+                ans_gotten = True
+                line = stdout[i]
+                line = line.split(": ")
+                if line[1] == "unsat" or line[1] == "unknown":  # TODO
+                    # if line[1] == "unsat":
+                    result = True
+                    runable = True
+                elif line[1] == "sat":
+                    result = False
+                    runable = True
+                else:
+                    runable = False
+                break
+
+    except Exception as e:
+        util.log((e), level=CONSTANT.INFO)
+        runable = False
+    return ans_gotten, runable, result, time
 
 
 def boot_dnnv(network: str, property: str, verifier: str,
@@ -36,8 +89,8 @@ def boot_dnnv(network: str, property: str, verifier: str,
         os.remove(violation)
 
     while True:
-        print("*" * 80 + "\n" + "Verifying...")
-        print(" ".join(cmd))
+        util.log(("*" * 80 + "\n" + "Verifying..."), level=CONSTANT.INFO)
+        util.log((" ".join(cmd)), level=CONSTANT.INFO)
 
         # %% Call DNNV from fucntion
 
@@ -69,12 +122,12 @@ def boot_dnnv(network: str, property: str, verifier: str,
             proc = subprocess.run(cmd, capture_output=True, text=True)
             dnnv_stdout = proc.stdout
             dnnv_stderr = proc.stderr
-            # print(dnnv_stdout)
-            # print(dnnv_stderr)
+            # util.log((dnnv_stdout),level=CONSTANT.INFO)
+            # util.log((dnnv_stderr),level=CONSTANT.INFO)
             dnnv_stdout = dnnv_stdout.split("\n")
             dnnv_stderr = dnnv_stderr.split("\n")
         except Exception as e:
-            print(e)
+            util.log((e), level=CONSTANT.INFO)
 
         # %% Check DNNV output
 
@@ -82,68 +135,39 @@ def boot_dnnv(network: str, property: str, verifier: str,
         result = False
         runable = False
 
-        retry = False
+        to_retry = False
 
         # Check dnnv_stderr
         try:
             for i in range(len(dnnv_stderr) - 1, -1, -1):
-                if is_retry(dnnv_stderr[i]):
-                    retry = True
+                if is_to_retry(dnnv_stderr[i]):
+                    to_retry = True
                     break
         except BaseException:
             pass
 
-        if retry:
-            print("Retrying...")
+        if to_retry:
+            util.log(("Retrying..."), level=CONSTANT.INFO)
             continue
 
         # %% Check dnnv_stdout
-        try:
-            got_info = False
-            for i in range(len(dnnv_stdout) - 1, -1, -1):
-                if "time: " in dnnv_stdout[i]:
-                    line = dnnv_stdout[i]
-                    line = line.split(": ")
-                    time = float(line[1])
-                    got_info = True
-                elif "result: " in dnnv_stdout[i]:
-                    got_info = True
-                    line = dnnv_stdout[i]
-                    line = line.split(": ")
-                    if line[1] == "unsat" or line[1] == "unknown":  # TODO
-                        # if line[1] == "unsat":
-                        result = True
-                        runable = True
-                    elif line[1] == "sat":
-                        result = False
-                        runable = True
-                    else:
-                        runable = False
-                    break
-            if got_info:
-                print("## Info:")
-                print("\n".join(dnnv_stdout[-4:]))
-            else:
-                print("## Error:")
-                print("\n".join(dnnv_stderr[-5:]))
-        except Exception as e:
-            print(e)
-            runable = False
+        ans_gotten, runable, result, time = extract_stdout_ans(dnnv_stdout)
+        log_dnnv_output(dnnv_stdout, dnnv_stderr, ans_gotten)
 
-        print("## Ans:")
-        print(runable, result, time)
+        util.log(("## Ans:"), level=CONSTANT.WARNING)
+        util.log((runable, result, time), level=CONSTANT.WARNING)
 
         if runable == True:
             if result == False:
                 ans = np.load(violation)
-                print("SAT")
+                util.log(("SAT"), level=CONSTANT.WARNING)
                 nn.onnx_runner.run_onnx(network=network, input=ans)
             else:
-                print("UNSAT")
+                util.log(("UNSAT"), level=CONSTANT.WARNING)
         else:
-            print("Error")
+            util.log(("Error"), level=CONSTANT.WARNING)
         break
-    print("\n\n" + "#" * 80 + "\n" + "#" * 80)
+    util.log(("\n\n" + "#" * 80 + "\n" + "#" * 80), level=CONSTANT.WARNING)
     return runable, result, time
 
 

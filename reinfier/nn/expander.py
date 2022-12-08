@@ -44,9 +44,9 @@ def unwind_network(network, k: int, branchable=False):
     try:
         onnx.checker.check_model(model)
     except onnx.checker.ValidationError as e:
-        util.log('The model is invalid: %s' % e)
+        util.log('Original model is invalid: %s' % e)
     else:
-        util.log('The model is valid!', level=CONSTANT.INFO)
+        util.log('Original model is valid!', level=CONSTANT.INFO)
 
     graph = model.graph
     graph_node = graph.node
