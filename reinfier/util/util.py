@@ -1,27 +1,32 @@
 from .. import CONSTANT
 from .. import Setting
 import os
+import time
 
-def get_filename_from_path(path:str):
-    path=path.rsplit("/",1)
-    if len(path)==1:
+
+def get_filename_from_path(path: str):
+    path = path.rsplit("/", 1)
+    if len(path) == 1:
         return path[0]
     else:
         return path[1]
 
-def get_savepath(filename,step:int,type:str):
+
+def get_savepath(filename, step: int, type: str):
     try:
         os.mkdir(Setting.TmpPath)
-    except:
+    except BaseException:
         pass
     # filename=get_filename_from_path(filename)
-    if isinstance(filename,str):
+    if isinstance(filename, str):
         filename = filename.rsplit(".")[0]
-        return "%s/%s#%d.%s"% (Setting.TmpPath,filename,step,type)
+        return "%s/%s#%d_%s.%s" % (Setting.TmpPath, filename, step,str(time.time()).replace(".",""),type)
+        # return "%s/%s#%d.%s" % (Setting.TmpPath, filename, step,type)
     else:
         filename = [get_filename_from_path(x).rsplit(".")[0] for x in filename]
-        return "%s/%s.%s"%(Setting.TmpPath,"@".join(filename),type)
+        return "%s/%s.%s" % (Setting.TmpPath, "@".join(filename), type)
 
-def log(*args,level=CONSTANT.DEBUG):
-    if level>=Setting.LogLevel:
-        print(" ".join(map(str,args)))
+
+def log(*args, level=CONSTANT.DEBUG):
+    if level >= Setting.LogLevel:
+        print(" ".join(map(str, args)))

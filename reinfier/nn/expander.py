@@ -1,49 +1,52 @@
-from .  import onnx_runner
+from . import onnx_runner
 from .. import util
 from .. import CONSTANT
 import numpy as np
 import onnx
 import copy
+import onnx.numpy_helper
+
 
 def convert_name(name: str, step: int):
-    return name+"@"+str(step)
+    return name + "@" + str(step)
 
-def diag_copy(matrix:np.ndarray,k:int):
-    if matrix.ndim==1:
-        matrix_new=np.zeros((matrix.shape[0]*k),matrix.dtype)
+
+def diag_copy(matrix: np.ndarray, k: int):
+    if matrix.ndim == 1:
+        matrix_new = np.zeros((matrix.shape[0] * k), matrix.dtype)
         for i in range(k):
-            row=i*matrix.shape[0]
+            row = i * matrix.shape[0]
             for j in range(matrix.shape[0]):
-                matrix_new[row+j]=matrix[j]
-    elif matrix.ndim ==2:
-        matrix_new=np.zeros((matrix.shape[0]*k,matrix.shape[1]*k),matrix.dtype)
+                matrix_new[row + j] = matrix[j]
+    elif matrix.ndim == 2:
+        matrix_new = np.zeros((matrix.shape[0] * k, matrix.shape[1] * k), matrix.dtype)
         for i in range(k):
-            row=i*matrix.shape[0]
-            col=i*matrix.shape[1]
+            row = i * matrix.shape[0]
+            col = i * matrix.shape[1]
             for j in range(matrix.shape[0]):
                 for l in range(matrix.shape[1]):
-                    matrix_new[row+j][col+l]=matrix[j][l]
+                    matrix_new[row + j][col + l] = matrix[j][l]
     else:
         raise Exception
     return matrix_new
 
 
-def unwind_network(network, k: int,branchable=False):
-    if isinstance(network,str):
+def unwind_network(network, k: int, branchable=False):
+    if isinstance(network, str):
         model = onnx.load(network)
     else:
-        model=network
-        network="tmp.onnx"
-    origin_filename=network
-    network=util.util.get_filename_from_path(network)
-        
+        model = network
+        network = "tmp.onnx"
+    origin_filename = network
+    network = util.util.get_filename_from_path(network)
+
     # Check the model
     try:
         onnx.checker.check_model(model)
     except onnx.checker.ValidationError as e:
         util.log('The model is invalid: %s' % e)
     else:
-        util.log('The model is valid!',level=CONSTANT.INFO)
+        util.log('The model is valid!', level=CONSTANT.INFO)
 
     graph = model.graph
     graph_node = graph.node
@@ -73,32 +76,32 @@ def unwind_network(network, k: int,branchable=False):
         step = 0
 
         graph_input.type.tensor_type.shape.dim[0].dim_value = 1
-        graph_input.type.tensor_type.shape.dim[1].dim_value = graph_input_length*k
+        graph_input.type.tensor_type.shape.dim[1].dim_value = graph_input_length * k
         graph_output.type.tensor_type.shape.dim[0].dim_value = 1
-        graph_output.type.tensor_type.shape.dim[1].dim_value = graph_output_length*k
-        #%% No branch Expanding
+        graph_output.type.tensor_type.shape.dim[1].dim_value = graph_output_length * k
+        # %% No branch Expanding
         if not branchable:
-            initializer_dict= {x.name:(idx,onnx.numpy_helper.to_array(x)) for idx,x in enumerate(initializer)}
+            initializer_dict = {x.name: (idx, onnx.numpy_helper.to_array(x)) for idx, x in enumerate(initializer)}
             for node in graph_node:
                 for name in node.input:
                     if name in initializer_dict.keys():
-                        input_name=name
-                        idx,matrix=initializer_dict[input_name]
-                        matrix_new=diag_copy(matrix,k)
-                        tensor=onnx.numpy_helper.from_array(matrix_new,input_name)
+                        input_name = name
+                        idx, matrix = initializer_dict[input_name]
+                        matrix_new = diag_copy(matrix, k)
+                        tensor = onnx.numpy_helper.from_array(matrix_new, input_name)
                         model.graph.initializer[idx].CopyFrom(tensor)
-        #%% Branch Expanding
+        # %% Branch Expanding
         else:
             for x in node_origin:
                 graph_node.remove(x)
 
             # Add Concat Zero Matrix
-            mat = np.zeros((graph_output_length, k*graph_output_length))
+            mat = np.zeros((graph_output_length, k * graph_output_length))
             concat_zero_matrix_name = "concat_zero_matrix"
             tensor = onnx.helper.make_tensor(
                 name=concat_zero_matrix_name,
                 data_type=onnx.TensorProto.FLOAT,
-                dims=(graph_output_length, k*graph_output_length),
+                dims=(graph_output_length, k * graph_output_length),
                 vals=mat.flatten()
             )
             initializer.append(tensor)
@@ -107,16 +110,16 @@ def unwind_network(network, k: int,branchable=False):
             # concat_names=[]
             for step in range(k):
                 # Add Split node
-                start_index = step*graph_input_length
+                start_index = step * graph_input_length
                 indices_name = convert_name("SplitIndeices", step)
-                mat = np.zeros((k*graph_input_length, graph_input_length))
+                mat = np.zeros((k * graph_input_length, graph_input_length))
                 for i in range(graph_input_length):
-                    mat[start_index+i, i] = 1
+                    mat[start_index + i, i] = 1
 
                 tensor = onnx.helper.make_tensor(
                     name=indices_name,
                     data_type=onnx.TensorProto.FLOAT,
-                    dims=(k*graph_input_length, graph_input_length),
+                    dims=(k * graph_input_length, graph_input_length),
                     vals=mat.flatten()
                 )
                 initializer.append(tensor)
@@ -183,16 +186,16 @@ def unwind_network(network, k: int,branchable=False):
                     graph_node.append(node)
 
                 # Add Merge node
-                start_index = step*graph_output_length
+                start_index = step * graph_output_length
                 indices_name = convert_name("MergeIndeices", step)
-                mat = np.zeros((graph_output_length, k*graph_output_length))
+                mat = np.zeros((graph_output_length, k * graph_output_length))
                 for i in range(graph_output_length):
-                    mat[i, start_index+i] = 1
+                    mat[i, start_index + i] = 1
 
                 tensor = onnx.helper.make_tensor(
                     name=indices_name,
                     data_type=onnx.TensorProto.FLOAT,
-                    dims=(graph_output_length, k*graph_output_length),
+                    dims=(graph_output_length, k * graph_output_length),
                     vals=mat.flatten()
                 )
                 initializer.append(tensor)
@@ -208,10 +211,10 @@ def unwind_network(network, k: int,branchable=False):
 
                 # Add Concat Node
                 concat_name = convert_name("Concat", step)
-                prev_concat_name = convert_name("Concat", step-1)
+                prev_concat_name = convert_name("Concat", step - 1)
                 if step == 0:
                     prev_concat_name = concat_zero_matrix_name
-                if step == k-1:
+                if step == k - 1:
                     concat_name = graph_output.name
                 # print(prev_concat_name, concat_name, merge_name)
                 concat_node = onnx.helper.make_node(
@@ -242,30 +245,28 @@ def unwind_network(network, k: int,branchable=False):
 
         # graph.output.remove(graph_output)
 
-
-
-
     model.opset_import[0].version = 9
     util.log(onnx.helper.printable_graph(model.graph))
     # print(graph.input)
     try:
         onnx.checker.check_model(model)
     except onnx.checker.ValidationError as e:
-        util.log('Expanded model is invalid: %s' % e,level=CONSTANT.CRITICAL)
+        util.log('Expanded model is invalid: %s' % e, level=CONSTANT.CRITICAL)
     else:
-        util.log('Expanded model is valid!',level=CONSTANT.INFO)
+        util.log('Expanded model is valid!', level=CONSTANT.INFO)
 
     filename = network
-    unwinded_network_filename = util.util.get_savepath(filename,k,"onnx")
+    unwinded_network_filename = util.util.get_savepath(filename, k, "onnx")
     util.log(unwinded_network_filename)
     onnx.save(model, unwinded_network_filename)
 
     onnx_runner.run_onnx(origin_filename, np.array(
-        [[1.0]*graph_input_length], dtype=np.float32))
+        [[1.0] * graph_input_length], dtype=np.float32))
     onnx_runner.run_onnx(unwinded_network_filename, np.array(
-        [[1.0]*graph_input_length*k], dtype=np.float32))
+        [[1.0] * graph_input_length * k], dtype=np.float32))
 
     return unwinded_network_filename
 
+
 if __name__ == "__main__":
-    unwind_network("test01.onnx",3)
+    unwind_network("test01.onnx", 3)
