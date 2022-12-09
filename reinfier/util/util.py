@@ -20,7 +20,7 @@ def get_savepath(filename, step: int, type: str):
     # filename=get_filename_from_path(filename)
     if isinstance(filename, str):
         filename = filename.rsplit(".")[0]
-        return "%s/%s#%d_%s.%s" % (Setting.TmpPath, filename, step,str(time.time()).replace(".",""),type)
+        return "%s/%s#%d_%s.%s" % (Setting.TmpPath, filename, step, str(time.time()).replace(".", ""), type)
         # return "%s/%s#%d.%s" % (Setting.TmpPath, filename, step,type)
     else:
         filename = [get_filename_from_path(x).rsplit(".")[0] for x in filename]
@@ -28,5 +28,7 @@ def get_savepath(filename, step: int, type: str):
 
 
 def log(*args, level=CONSTANT.DEBUG):
+    if len(args) == 1 and (isinstance(args[0], tuple) or isinstance(args[0], list)):
+        args = args[0]
     if level >= Setting.LogLevel:
         print(" ".join(map(str, args)))

@@ -8,11 +8,20 @@ from .. import util
 
 
 def select_verifier(networks, properties, verifiers: list = None, network_alias: str = "N"):
+    util.log("## Selecting verifier...", level=CONSTANT.INFO)
     if verifiers is None:
-        verifiers = CONSTANT.VERIFIER
+        if Setting.SelectionFull:
+            verifiers = CONSTANT.VERIFIER
+        else:
+            verifiers = CONSTANT.RUNABLE_VERIFIER
+    util.log("Runable verifiers:", level=CONSTANT.INFO)
+    util.log(verifiers, level=CONSTANT.INFO)
 
     log_level = Setting.LogLevel
-    Setting.set_LogLevel(CONSTANT.CRITICAL)
+    if Setting.LogLevel == CONSTANT.DEBUG:
+        Setting.set_LogLevel(CONSTANT.DEBUG)
+    else:
+        Setting.set_LogLevel(CONSTANT.ERROR)
 
     if isinstance(networks, str) and isinstance(properties, str):
         network = networks
@@ -26,13 +35,14 @@ def select_verifier(networks, properties, verifiers: list = None, network_alias:
                 False: nn.expander.unwind_network(network, i, branchable=False),
             })
             # nn.expander.unwind_network(network, i))
-            
+
             code, dnnp = drlp.parser.parse_drlp(property, i)
             properties.append(dnnp)
 
     status = {}
     num = len(networks)
     for verifier in verifiers:
+        util.log(("Testing...", verifier), level=CONSTANT.CRITICAL)
         status[verifier] = {
             "runable": True,
             "time_sum": 0.0,
@@ -56,14 +66,14 @@ def select_verifier(networks, properties, verifiers: list = None, network_alias:
 
     Setting.set_LogLevel(log_level)
 
-    print(json.dumps(status, indent=4))
-
     time_sum_min = float("inf")
     time_sum_min_verifier = None
     for key in status.keys():
         if status[key]["runable"] == True and status[key]["time_sum"] < time_sum_min:
             time_sum_min_verifier = key
             time_sum_min = status[key]["time_sum"]
+    util.log(json.dumps(status, indent=4), level=CONSTANT.DEBUG)
+    util.log("## Chosen verifier: \n" + time_sum_min_verifier + "\n", level=CONSTANT.INFO)
 
     return time_sum_min_verifier
 
