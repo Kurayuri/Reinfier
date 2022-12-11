@@ -96,7 +96,7 @@ Such DRLP text describe an Environment and an Agent:
 
 The dinfination of DRLP:  
 ```BNF
-<drlp> ::= <io_size_assign> NEWLINE <statements> NEWLINE  '# Exp' NEWLINE <statements>
+<drlp> ::= <io_size_assign> NEWLINE <statements> NEWLINE  '@Exp' NEWLINE <statements>
 
 <io_size_assign> ::= ''
    |  <io_size_assign> NEWLINE <io_size_id> '=' <int>
