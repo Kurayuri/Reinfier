@@ -27,6 +27,7 @@ class DRLPTransformer(ast.NodeTransformer):
     input_id = "x"
     output_id = "y"
     expectation_delimiter = "@Exp"
+    precondition_delimiter = "@Pre"
     dnnp_input_id = "x"
     dnnp_network_alias = "N"
     dnnp_output_id = "%s(%s)" % (
@@ -84,7 +85,8 @@ class DRLPTransformer(ast.NodeTransformer):
 
 
 class DRLPTransformer_Init(DRLPTransformer):
-    def __init__(self, depth):
+    def __init__(self, depth, kwargs):
+        self.kwargs = kwargs
         super().__init__(depth)
 
     # Read input_size and output_size
@@ -206,6 +208,10 @@ class DRLPTransformer_Init(DRLPTransformer):
         if node.id in self.iter_ids:
             return ast.Constant(
                 value=self.iter_vals[node.id]
+            )
+        if node.id in self.kwargs.keys():
+            return ast.Constant(
+                value=self.kwargs[node.id]
             )
         return node
 
