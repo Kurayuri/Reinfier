@@ -1,19 +1,15 @@
 from .. import util
 from .. import CONSTANT
+from . import lib
+from .DRLPTransformer import DRLPTransformer, DRLPTransformer_Init, DRLPTransformer_1, DRLPTransformer_2, DRLPTransformer_Induction
 import ast
-
 import astpretty
-import contextlib
 import copy
 import itertools
-import numpy
 import yapf
-import re
 import os
 import astor
 import copy
-import sys
-from .DRLPTransformer import DRLPParsingError, DRLPTransformer, DRLPTransformer_Init, DRLPTransformer_1, DRLPTransformer_2, DRLPTransformer_Induction
 
 
 src = '''
@@ -116,7 +112,7 @@ def save_dnnp(dnnp_root, filename, depth):
 
     code = format_dnnp(code)
 
-    unwinded_dnnp_filename = util.util.get_savepath(filename, depth, "dnnp")
+    unwinded_dnnp_filename = util.lib.get_savepath(filename, depth, "dnnp")
     with open(unwinded_dnnp_filename, "w") as f:
         f.write(code)
     util.log("\n## DNNP Filename:", level=CONSTANT.INFO)
@@ -131,36 +127,17 @@ def read_drlp(drlp):
             drlp = f.read()
     except Exception:
         filename = "tmp.drlp"
-    filename = util.util.get_filename_from_path(filename)
+    filename = util.lib.get_filename_from_path(filename)
     return filename, drlp
 
 
-def split_drlp_pq(drlp):
-    try:
-        drlp = re.split("%s[^\n]*\n" % (DRLPTransformer.expectation_delimiter), drlp)
-        if len(drlp) != 2:
-            raise Exception
-    except Exception:
-        raise DRLPParsingError("Invalid DRLP format")
-    return drlp[0], drlp[1]
-
-
-def split_drlp_vpq(drlp):
-    try:
-        drlp = re.split("%s[^\n]*\n" % (DRLPTransformer.precondition_delimiter), drlp)
-        if len(drlp) != 2:
-            drlp.insert(0, "")
-    except Exception as e:
-        raise DRLPParsingError("Invalid DRLP format")
-    return drlp[0], drlp[1]
-
-
-def transform(ast_roots, depth: int, kwgs: dict):
-    transformer_init = DRLPTransformer_Init(depth, kwgs)
+def transform(ast_roots, depth: int, kwargs: dict):
+    transformer_init = DRLPTransformer_Init(depth, kwargs)
     for ast_root in ast_roots:
         ast_root = transformer_init.visit(ast_root)
     input_size = transformer_init.input_size
     output_size = transformer_init.output_size
+    variables = transformer_init.variables
 
     transformers = [
         DRLPTransformer_1(depth, input_size, output_size),
@@ -183,12 +160,20 @@ def exec_drlp_v(drlp):
     return locals()
 
 
+def is_iterable_variable(id: str):
+    return id[0] == "_"
+
+
+def convert_iterable_variable_to_normal_variable(id: str):
+    return id[1:]
+
+
 def get_product(dicts):
     iterable_variables = {}
     normal_variables = {}
     for k, v in dicts.items():
         if k[0] == "_":
-            iterable_variables[k[1:]] = v
+            iterable_variables[convert_iterable_variable_to_normal_variable(k)] = v
         else:
             normal_variables[k] = v
 
@@ -201,13 +186,31 @@ def get_product(dicts):
     return product
 
 
-# %% Parse DRLP
+def get_variables_pq(drlp_pq):
+    drlp_blocks = lib.split_drlp_pq(drlp_pq)
+    transformer = DRLPTransformer(1)
+    for drlp_block in drlp_blocks:
+        ast_root = ast.parse(drlp_block)
+        ast_root = transformer.visit(ast_root)
+    variables = transformer.variables
+    return variables
 
 
+def filter_unused_variables(variables_v, variables_pq):
+    for k in list(variables_v.keys()):
+        ki = k
+        if is_iterable_variable(k):
+            ki = convert_iterable_variable_to_normal_variable(k)
+        if ki not in variables_pq:
+            variables_v.pop(k)
+    return variables_v
+
+
+# %% Parse DRLP PQ
 def parse_drlp(drlp: str, depth: int, kwgs: dict = {}):
     filename, drlp = read_drlp(drlp)
-    drlp_v, drlp = split_drlp_vpq(drlp)
-    drlp_p, drlp_q = split_drlp_pq(drlp)
+    drlp_v, drlp = lib.split_drlp_vpq(drlp)
+    drlp_p, drlp_q = lib.split_drlp_pq(drlp)
 
     ast_root_p = ast.parse(drlp_p)
     ast_root_q = ast.parse(drlp_q)
@@ -225,11 +228,11 @@ def parse_drlp(drlp: str, depth: int, kwgs: dict = {}):
     return code, unwinded_dnnp_filename
 
 
-# %% Parse DRLP for k-induction
+# %% Parse DRLP PQ for k-induction
 def parse_drlp_induction(drlp: str, depth: int, kwargs: dict = {}):
     filename, drlp = read_drlp(drlp)
-    drlp_v, drlp = split_drlp_vpq(drlp)
-    drlp_p, drlp_q = split_drlp_pq(drlp)
+    drlp_v, drlp = lib.split_drlp_vpq(drlp)
+    drlp_p, drlp_q = lib.split_drlp_pq(drlp)
 
     # k+1 Precondition
     depth += 1
@@ -261,13 +264,18 @@ def parse_drlp_induction(drlp: str, depth: int, kwargs: dict = {}):
 
     return code, unwinded_dnnp_filename
 
-
-def parse_drlps(drlp: str, depth: int, to_induct: bool = False):
+# %% Parse DRLP VPQ
+def parse_drlps(drlp: str, depth: int, to_induct: bool = False, to_filter_unused_variables: bool = True):
     filename, drlp = read_drlp(drlp)
-    drlp_v, drlp_pq = split_drlp_vpq(drlp)
+    drlp_v, drlp_pq = lib.split_drlp_vpq(drlp)
 
-    varibles = exec_drlp_v(drlp_v)
-    kwargss = get_product(varibles)
+    varibles_v = exec_drlp_v(drlp_v)
+    variables_pq = get_variables_pq(drlp_pq)
+
+    if to_filter_unused_variables:
+        varibles_v = filter_unused_variables(varibles_v, variables_pq)
+
+    kwargss = get_product(varibles_v)
 
     codes = []
     unwinded_dnnp_filenames = []
@@ -283,9 +291,9 @@ def parse_drlps(drlp: str, depth: int, to_induct: bool = False):
 
     return codes, unwinded_dnnp_filenames
 
-
-def parse_drlps_induction(drlp: str, depth: int):
-    return parse_drlps(drlp, depth, True)
+# %% Parse DRLP VPQ for k-induction
+def parse_drlps_induction(drlp: str, depth: int, to_filter_unused_variables: bool = True):
+    return parse_drlps(drlp, depth, True, to_filter_unused_variables)
 
 
 if __name__ == "__main__":

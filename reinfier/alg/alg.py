@@ -19,7 +19,7 @@ def bmc(network, drlp_txt, k_max=10, verifier=None, k_min=1):
 
     for k in range(k_min, k_max + 1):
 
-        dnn = nn.expander.unwind_network(network, k, branchable=nn.util.is_branchable(verifier))
+        dnn = nn.expander.unwind_network(network, k, branchable=nn.lib.is_branchable(verifier))
         code, dnnp = drlp.parser.parse_drlp(drlp_txt, k)
 
         runable, result, time = dnnv.booter.boot_dnnv(dnn, dnnp, verifier)
@@ -38,7 +38,7 @@ def k_induction(network, drlp_txt, k_max=10, verifier=None, k_min=1):
 
     for k in range(k_min, k_max + 1):
 
-        dnn = nn.expander.unwind_network(network, k, branchable=nn.util.is_branchable(verifier))
+        dnn = nn.expander.unwind_network(network, k, branchable=nn.lib.is_branchable(verifier))
         code, dnnp = drlp.parser.parse_drlp(drlp_txt, k)
 
         runable, result, time = dnnv.booter.boot_dnnv(dnn, dnnp, verifier)
@@ -46,7 +46,7 @@ def k_induction(network, drlp_txt, k_max=10, verifier=None, k_min=1):
 
         if result == True:
 
-            dnn = nn.expander.unwind_network(network, k + 1, branchable=nn.util.is_branchable(verifier))
+            dnn = nn.expander.unwind_network(network, k + 1, branchable=nn.lib.is_branchable(verifier))
             code, dnnp = drlp.parser.parse_drlp_induction(drlp_txt, k)
 
             runable, result, time = dnnv.booter.boot_dnnv(dnn, dnnp, verifier)

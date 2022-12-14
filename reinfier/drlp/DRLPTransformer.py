@@ -49,6 +49,8 @@ class DRLPTransformer(ast.NodeTransformer):
         self.iter_vals = {}
         self.iter_ids = []
 
+        self.variables = set()
+
     def calculate(self, node):
         expr = ast.Expression(body=node)
         ast.fix_missing_locations(expr)
@@ -78,6 +80,11 @@ class DRLPTransformer(ast.NodeTransformer):
             return True
         return False
 
+    def visit_Name(self, node: ast.Name):
+        self.variables.add(node.id)
+        return node
+
+
 # %% 1. Get input_size and output_size
 #   2. Replace parameters
 #   3. Calculate expression
@@ -85,7 +92,7 @@ class DRLPTransformer(ast.NodeTransformer):
 
 
 class DRLPTransformer_Init(DRLPTransformer):
-    def __init__(self, depth, kwargs):
+    def __init__(self, depth, kwargs: dict = {}):
         self.kwargs = kwargs
         super().__init__(depth)
 

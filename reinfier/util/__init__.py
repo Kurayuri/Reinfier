@@ -1,4 +1,4 @@
 
-from . import util
+from . import lib
 from . import output_wrapper
-from .util import log
+from .lib import log

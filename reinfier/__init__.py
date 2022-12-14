@@ -1,6 +1,6 @@
 """Reinfier - A verification framework for deep reinforcement learning"""
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 from .alg import *
 
 from . import alg

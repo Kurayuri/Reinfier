@@ -38,7 +38,7 @@ def unwind_network(network, k: int, branchable=False):
         model = network
         network = "tmp.onnx"
     origin_filename = network
-    network = util.util.get_filename_from_path(network)
+    network = util.lib.get_filename_from_path(network)
 
     # Check the model
     try:
@@ -256,7 +256,7 @@ def unwind_network(network, k: int, branchable=False):
         util.log('Expanded model is valid!', level=CONSTANT.INFO)
 
     filename = network
-    unwinded_network_filename = util.util.get_savepath(filename, k, "onnx")
+    unwinded_network_filename = util.lib.get_savepath(filename, k, "onnx")
     util.log(unwinded_network_filename)
     onnx.save(model, unwinded_network_filename)
 

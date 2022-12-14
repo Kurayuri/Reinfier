@@ -72,7 +72,7 @@ def extract_stdout_ans(stdout):
 def boot_dnnv(network: str, property: str, verifier: str,
               network_alias: str = "N", violation: str = None):
     if violation is None:
-        violation = util.util.get_savepath([network, property], None, "npy")
+        violation = util.lib.get_savepath([network, property], None, "npy")
 
     assert verifier in CONSTANT.VERIFIER, "Unsupported verifier: %s" % verifier
 
