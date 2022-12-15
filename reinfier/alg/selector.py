@@ -31,10 +31,10 @@ def select_verifier(networks, properties, verifiers: list = None, network_alias:
         for i in range(1, 3):
             # TODO
             networks.append({
-                True: nn.expander.unwind_network(network, i, branchable=True),
-                False: nn.expander.unwind_network(network, i, branchable=False),
+                True: nn.expander.unroll_nn(network, i, branchable=True),
+                False: nn.expander.unroll_nn(network, i, branchable=False),
             })
-            # nn.expander.unwind_network(network, i))
+            # nn.expander.unroll_nn(network, i))
 
             code, dnnp = drlp.parser.parse_drlp(property, i)
             properties.append(dnnp)

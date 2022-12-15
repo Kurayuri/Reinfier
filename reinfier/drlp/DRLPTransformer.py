@@ -32,7 +32,7 @@ class DRLPTransformer(ast.NodeTransformer):
     dnnp_network_alias = "N"
     dnnp_output_id = "%s(%s)" % (
         dnnp_network_alias, dnnp_input_id)
-    unwinding_id = "k"
+    depth_id = "k"
 
     dnnp_and_id = "And"
     dnnp_or_id = "Or"
@@ -85,6 +85,17 @@ class DRLPTransformer(ast.NodeTransformer):
         return node
 
 
+class DRLPTransformer_VR(DRLPTransformer):
+    def __init__(self, kwargs: dict = {}):
+        super().__init__(0)
+        self.kwargs = kwargs
+
+    def visit_Name(self, node: ast.Name):
+        if node.id in self.kwargs.keys():
+            return ast.Constant(
+                value=self.kwargs[node.id]
+            )
+        return node
 # %% 1. Get input_size and output_size
 #   2. Replace parameters
 #   3. Calculate expression
@@ -208,7 +219,7 @@ class DRLPTransformer_Init(DRLPTransformer):
         return node
 
     def visit_Name(self, node: ast.Name):
-        if node.id == self.unwinding_id:
+        if node.id == self.depth_id:
             return ast.Constant(
                 value=self.depth
             )

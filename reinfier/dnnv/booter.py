@@ -2,6 +2,8 @@ import contextlib
 import os
 import numpy as np
 import subprocess
+from ..nn.NN import NN
+from ..drlp.DNNP import DNNP
 from .. import nn
 from .. import util
 from .. import CONSTANT
@@ -18,7 +20,7 @@ def is_to_retry(txt: str):
     return False
 
 
-def log_dnnv_output(stdout, stderr,ans_gotten):
+def log_dnnv_output(stdout, stderr, ans_gotten):
     if Setting.LogLevel == CONSTANT.DEBUG:
         util.log(("## Error:"), level=CONSTANT.INFO)
         util.log(("\n".join(stderr)), level=CONSTANT.DEBUG)
@@ -69,8 +71,10 @@ def extract_stdout_ans(stdout):
     return ans_gotten, runable, result, time
 
 
-def boot_dnnv(network: str, property: str, verifier: str,
+def boot_dnnv(network: NN, property: DNNP, verifier: str,
               network_alias: str = "N", violation: str = None):
+    network = network.path
+    property=property.path
     if violation is None:
         violation = util.lib.get_savepath([network, property], None, "npy")
 

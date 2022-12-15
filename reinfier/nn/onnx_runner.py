@@ -6,8 +6,7 @@ from .. import util
 # onnxruntime.set_default_logger_severity(0)
 
 
-def run_onnx(network, input):
-
+def run_onnx(network: str, input):
     if isinstance(input, str):
         input_array = np.load(input)
     elif isinstance(input, np.ndarray):
@@ -16,8 +15,6 @@ def run_onnx(network, input):
     session = onnxruntime.InferenceSession(network,)
     input_name = session.get_inputs()[0].name
     output = session.run([], {input_name: input_array})
-    # with open("sss.log",'a') as f:
-    #     f.write(str(input_array)+"\n"+str(output)+"\n")
     util.log("With Input:\n", input_array, "\nOutput:\n", output, level=CONSTANT.INFO)
     return output
 

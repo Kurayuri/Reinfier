@@ -1,6 +1,8 @@
-from . import onnx_runner
+from .. import nn
 from .. import util
 from .. import CONSTANT
+from . import onnx_runner
+from ..nn.NN import NN
 import numpy as np
 import onnx
 import copy
@@ -31,14 +33,12 @@ def diag_copy(matrix: np.ndarray, k: int):
     return matrix_new
 
 
-def unwind_network(network, k: int, branchable=False):
-    if isinstance(network, str):
-        model = onnx.load(network)
-    else:
-        model = network
-        network = "tmp.onnx"
-    origin_filename = network
-    network = util.lib.get_filename_from_path(network)
+def unroll_nn(network: NN, k: int, branchable=False):
+    network = NN(network)
+    model = network.obj
+    path = network.path
+    origin_path = path
+    filename = util.lib.get_filename_from_path(path)
 
     # Check the model
     try:
@@ -255,18 +255,17 @@ def unwind_network(network, k: int, branchable=False):
     else:
         util.log('Expanded model is valid!', level=CONSTANT.INFO)
 
-    filename = network
-    unwinded_network_filename = util.lib.get_savepath(filename, k, "onnx")
-    util.log(unwinded_network_filename)
-    onnx.save(model, unwinded_network_filename)
+    path = util.lib.get_savepath(filename, k, "onnx")
+    util.log(path)
+    onnx.save(model, path)
 
-    onnx_runner.run_onnx(origin_filename, np.array(
+    onnx_runner.run_onnx(origin_path, np.array(
         [[1.0] * graph_input_length], dtype=np.float32))
-    onnx_runner.run_onnx(unwinded_network_filename, np.array(
+    onnx_runner.run_onnx(path, np.array(
         [[1.0] * graph_input_length * k], dtype=np.float32))
 
-    return unwinded_network_filename
+    return NN(path)
 
 
 if __name__ == "__main__":
-    unwind_network("test01.onnx", 3)
+    unroll_nn("test01.onnx", 3)
