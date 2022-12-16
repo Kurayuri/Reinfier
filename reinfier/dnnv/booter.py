@@ -93,7 +93,8 @@ def boot_dnnv(network: NN, property: DNNP, verifier: str,
         os.remove(violation)
 
     while True:
-        util.log(("*" * 80 + "\n" + "Verifying..."), level=CONSTANT.INFO)
+        util.log_prompt(1)
+        util.log("Verifying...", level=CONSTANT.INFO)
         util.log((" ".join(cmd)), level=CONSTANT.INFO)
 
         # %% Call DNNV from fucntion
@@ -171,7 +172,7 @@ def boot_dnnv(network: NN, property: DNNP, verifier: str,
         else:
             util.log(("Error"), level=CONSTANT.WARNING)
         break
-    util.log(("\n\n" + "#" * 80 + "\n" + "#" * 80), level=CONSTANT.WARNING)
+    util.log_prompt(2)
     return runable, result, time
 
 

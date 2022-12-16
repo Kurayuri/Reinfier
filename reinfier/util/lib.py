@@ -32,3 +32,13 @@ def log(*args, level=CONSTANT.DEBUG):
         args = args[0]
     if level >= Setting.LogLevel:
         print(" ".join(map(str, args)))
+    
+def log_prompt(prompt_level,level=CONSTANT.WARNING):
+    if prompt_level==1:
+        log(("*" * 80), level=CONSTANT.INFO)
+    elif prompt_level==2:
+        log(("\n\n" + "#" * 80 + "\n" + "#" * 80), level=level)
+    elif prompt_level==3:
+        log(("\n" + ("-" * 120 + "\n")*3), level=level)
+
+

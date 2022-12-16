@@ -1,3 +1,4 @@
 """Reinfier.Algorithm"""
 
-from .alg import k_induction,bmc
+from .single import *
+from .multi import *

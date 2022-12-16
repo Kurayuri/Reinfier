@@ -1,7 +1,8 @@
 class DRLP:
-    def __init__(self, arg):
+    def __init__(self, arg, kwargs=None):
         self.path = None
         self.obj = None
+        self.kwargs = kwargs
 
         if isinstance(arg, str):
             try:
@@ -17,3 +18,6 @@ class DRLP:
 
     def __str__(self):
         return self.path
+
+    def __repr__(self):
+        return self.path + str(self.kwargs)

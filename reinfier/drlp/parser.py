@@ -119,8 +119,7 @@ def save_dnnp(dnnp_root, filename, depth):
         f.write(code)
     util.log("\n## DNNP Filename:", level=CONSTANT.INFO)
     util.log(path, level=CONSTANT.INFO)
-    return DNNP(path)
-
+    return DNNP(path)   
 
 def read_drlp(drlp: DRLP):
     path = drlp.path
@@ -301,9 +300,8 @@ def parse_drlps(drlp: DRLP, depth: int, to_induct: bool = False, to_filter_unuse
 def parse_drlps_induction(drlp: str, depth: int, to_filter_unused_variables: bool = True):
     return parse_drlps(drlp, depth, True, to_filter_unused_variables)
 
-# %% Parse DRLP V
-def parse_drlp_v(drlp: DRLP, to_filter_unused_variables: bool = True):
-    filename, drlp = read_drlp(drlp)
+def get_variables(drlp: DRLP, to_filter_unused_variables: bool = True):
+    drlp = drlp.obj
     drlp_v, drlp_pq = lib.split_drlp_vpq(drlp)
     drlp_p, drlp_q = lib.split_drlp_pq(drlp_pq)
 
@@ -313,7 +311,17 @@ def parse_drlp_v(drlp: DRLP, to_filter_unused_variables: bool = True):
     if to_filter_unused_variables:
         varibles_v = filter_unused_variables(varibles_v, variables_pq)
 
-    kwargss = get_product(varibles_v)
+    return varibles_v
+
+
+
+# %% Parse DRLP V
+def parse_drlp_v(drlp: DRLP, to_filter_unused_variables: bool = True):
+    kwargss = get_product(get_variables(drlp))
+    filename, drlp = read_drlp(drlp)
+    drlp_v, drlp_pq = lib.split_drlp_vpq(drlp)
+    drlp_p, drlp_q = lib.split_drlp_pq(drlp_pq)
+
 
     drlps = []
 
@@ -328,8 +336,9 @@ def parse_drlp_v(drlp: DRLP, to_filter_unused_variables: bool = True):
 
         drlp_pi = astor.to_source(ast_root_p)
         drlp_qi = astor.to_source(ast_root_q)
-        drlp_pqi = "\n".join((drlp_pi, DRLPTransformer.precondition_delimiter, drlp_qi))
-        drlps.append(DRLP(drlp_pqi))
+        drlp_pqi = "\n".join((drlp_pi, DRLPTransformer.expectation_delimiter, drlp_qi))
+        util.log("## DRLP\n", drlp_pqi)
+        drlps.append(DRLP(drlp_pqi, kwargs))
 
     return drlps
 
