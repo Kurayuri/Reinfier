@@ -2,16 +2,12 @@ from .. import util
 from .. import CONSTANT
 from .DRLP import DRLP
 from .DNNP import DNNP
-from . import lib
-from .DRLPTransformer import DRLPTransformer, DRLPTransformer_Init, DRLPTransformer_1, DRLPTransformer_2, DRLPTransformer_Induction, DRLPTransformer_VR
+from .lib import *
+from .DRLPTransformer import *
 import ast
 import astpretty
-import copy
-import itertools
 import yapf
-import os
 import astor
-import copy
 
 
 src = '''
@@ -31,176 +27,9 @@ for i in range(0,k):
 y >= [[0]]*k
 '''
 
-yamf_style = '''
-[style]
-based_on_style = pep8
-column_limit=90
-dedent_closing_brackets = true
-'''
 
 
-def format_dnnp(code: str):
-    with open("./style.style_config", 'w') as f:
-        f.write(yamf_style)
-    code, changed = yapf.yapflib.yapf_api.FormatCode(
-        code, style_config="./style.style_config")
-    os.remove("./style.style_config")
-    util.log("\n## DNNP:")
-    util.log(code)
-    return code
 
-
-def make_dnnp(ast_root_p, ast_root_q):
-    # Add And
-    if len(ast_root_p.body) < 2:
-        node_p = ast_root_p.body[0]
-    else:
-        node_p = ast.Call(
-            func=ast.Name(id=DRLPTransformer.dnnp_and_id, ctx=ast.Load()),
-            args=ast_root_p.body,
-            keywords=[]
-        )
-
-    if len(ast_root_q.body) < 2:
-        node_q = ast_root_q.body[0]
-    else:
-        node_q = ast.Call(
-            func=ast.Name(id=DRLPTransformer.dnnp_and_id, ctx=ast.Load()),
-            args=ast_root_q.body,
-            keywords=[]
-        )
-
-    # Add Impies
-    impiles_node = ast.Call(
-        func=ast.Name(id=DRLPTransformer.dnnp_impiles_id, ctx=ast.Load()),
-        args=[node_p, node_q],
-        keywords=[]
-    )
-
-    forall_node = ast.Expr(ast.Call(
-        func=ast.Name(id=DRLPTransformer.dnnp_forall_id, ctx=ast.Load()),
-        args=[
-            ast.Name(id=DRLPTransformer.dnnp_input_id, ctx=ast.Load()),
-            impiles_node],
-        keywords=[]
-    ))
-
-    # Add additional code
-    dnnp_node = ast.parse("")
-    dnnp_node.body = [
-        ast.ImportFrom(
-            module="numpy",
-            names=[ast.alias(name='array', asname='array')],
-            # names=[ast.alias(name='array')],
-            level=0
-        ),
-        ast.ImportFrom(
-            module="dnnv.properties",
-            names=[ast.alias(name='*', asname=None)],
-            # names=[ast.alias(name='array')],
-            level=0
-        ),
-        ast.Assign(
-            targets=[
-                ast.Name(id=DRLPTransformer.dnnp_network_alias, ctx=ast.Store)],
-            value=ast.Name(id='''Network("N")''', ctx=ast.Load())
-        ),
-        forall_node]
-    return dnnp_node
-
-
-def save_dnnp(dnnp_root, filename, depth):
-    code = astor.to_source(dnnp_root)
-
-    code = format_dnnp(code)
-
-    path = util.lib.get_savepath(filename, depth, "dnnp")
-    with open(path, "w") as f:
-        f.write(code)
-    util.log("\n## DNNP Filename:", level=CONSTANT.INFO)
-    util.log(path, level=CONSTANT.INFO)
-    return DNNP(path)   
-
-def read_drlp(drlp: DRLP):
-    path = drlp.path
-    drlp = drlp.obj
-    filename = util.lib.get_filename_from_path(path)
-    return filename, drlp
-
-
-def transform(ast_roots, depth: int, kwargs: dict):
-    transformer_init = DRLPTransformer_Init(depth, kwargs)
-    for ast_root in ast_roots:
-        ast_root = transformer_init.visit(ast_root)
-    input_size = transformer_init.input_size
-    output_size = transformer_init.output_size
-    variables = transformer_init.variables
-
-    transformers = [
-        DRLPTransformer_1(depth, input_size, output_size),
-        DRLPTransformer_2(depth),
-    ]
-    for transformer in transformers:
-        for ast_root in ast_roots:
-            ast_root = transformer.visit(ast_root)
-
-    util.log("Input size:", input_size)
-    util.log("Output size:", output_size)
-
-    return ast_roots, input_size, output_size
-
-
-def exec_drlp_v(drlp):
-    exec(drlp)
-    if isinstance(drlp, str):
-        del drlp
-    return locals()
-
-
-def is_iterable_variable(id: str):
-    return id[0] == "_"
-
-
-def convert_iterable_variable_to_normal_variable(id: str):
-    return id[1:]
-
-
-def get_product(dicts):
-    iterable_variables = {}
-    normal_variables = {}
-    for k, v in dicts.items():
-        if k[0] == "_":
-            iterable_variables[convert_iterable_variable_to_normal_variable(k)] = v
-        else:
-            normal_variables[k] = v
-
-    product = list(
-        dict(zip(iterable_variables.keys(), values))
-        for values in itertools.product(*iterable_variables.values())
-    )
-    for x in product:
-        x.update(normal_variables)
-    return product
-
-
-def get_variables_pq(drlp_pq):
-    drlp_blocks = lib.split_drlp_pq(drlp_pq)
-    transformer = DRLPTransformer(1)
-    for drlp_block in drlp_blocks:
-        ast_root = ast.parse(drlp_block)
-        ast_root = transformer.visit(ast_root)
-    variables = transformer.variables
-    return variables
-
-
-def filter_unused_variables(variables_v, variables_pq):
-    for k in list(variables_v.keys()):
-        ki = k
-        if is_iterable_variable(k):
-            ki = convert_iterable_variable_to_normal_variable(k)
-        if ki not in variables_pq:
-            variables_v.pop(k)
-    return variables_v
 
 
 # %% Parse DRLP PQ
@@ -209,19 +38,16 @@ def parse_drlp(drlp: DRLP, depth: int, kwgs: dict = {}) -> DNNP:
         return drlp
 
     filename, drlp = read_drlp(drlp)
-    drlp_v, drlp = lib.split_drlp_vpq(drlp)
-    drlp_p, drlp_q = lib.split_drlp_pq(drlp)
+    drlp_v, drlp = split_drlp_vpq(drlp)
+    drlp_p, drlp_q = split_drlp_pq(drlp)
 
     ast_root_p = ast.parse(drlp_p)
     ast_root_q = ast.parse(drlp_q)
     # util.log(astpretty.pformat(ast_root_p, show_offsets=False))
 
-    (ast_root_p, ast_root_q), input_size, output_size = transform((ast_root_p, ast_root_q), depth, kwgs)
+    (ast_root_p, ast_root_q), input_size, output_size = transform_pipeline((ast_root_p, ast_root_q), depth, kwgs)
 
     # Make and save
-    ast_root_p = ast.fix_missing_locations(ast_root_p)
-    ast_root_q = ast.fix_missing_locations(ast_root_q)
-
     dnnp_root = make_dnnp(ast_root_p, ast_root_q)
     dnnp = save_dnnp(dnnp_root, filename, depth)
 
@@ -234,8 +60,8 @@ def parse_drlp_induction(drlp: DRLP, depth: int, kwargs: dict = {}) -> DNNP:
         return drlp
 
     filename, drlp = read_drlp(drlp)
-    drlp_v, drlp = lib.split_drlp_vpq(drlp)
-    drlp_p, drlp_q = lib.split_drlp_pq(drlp)
+    drlp_v, drlp = split_drlp_vpq(drlp)
+    drlp_p, drlp_q = split_drlp_pq(drlp)
 
     # k+1 Precondition
     depth += 1
@@ -243,7 +69,7 @@ def parse_drlp_induction(drlp: DRLP, depth: int, kwargs: dict = {}) -> DNNP:
     ast_root_q = ast.parse(drlp_q)
     # util.log(astpretty.pformat(ast_root_p,show_offsets=False))
 
-    (ast_root_p, ast_root_q), input_size, output_size = transform((ast_root_p, ast_root_q), depth, kwargs)
+    (ast_root_p, ast_root_q), input_size, output_size = transform_pipeline((ast_root_p, ast_root_q), depth, kwargs)
 
     transformer_indction = DRLPTransformer_Induction(depth, input_size, output_size, to_fix_subscript=False)
     ast_root_p = transformer_indction.visit(ast_root_p)
@@ -252,15 +78,13 @@ def parse_drlp_induction(drlp: DRLP, depth: int, kwargs: dict = {}) -> DNNP:
     depth -= 1
 
     ast_root_q_ = ast.parse(drlp_q)
-    (ast_root_q_,), ins, outs = transform((ast_root_q_,), depth, kwargs)
+    (ast_root_q_,), ins, outs = transform_pipeline((ast_root_q_,), depth, kwargs)
 
     transformer_indction = DRLPTransformer_Induction(depth, input_size, output_size, to_fix_subscript=True)
     ast_root_q_ = transformer_indction.visit(ast_root_q_)
 
     # Make and save
     ast_root_p.body += ast_root_q_.body
-    ast_root_p = ast.fix_missing_locations(ast_root_p)
-    ast_root_q = ast.fix_missing_locations(ast_root_q)
 
     dnnp_root = make_dnnp(ast_root_p, ast_root_q)
     dnnp = save_dnnp(dnnp_root, filename.rsplit(".")[0] + "!ind", depth)
@@ -272,7 +96,7 @@ def parse_drlp_induction(drlp: DRLP, depth: int, kwargs: dict = {}) -> DNNP:
 
 def parse_drlps(drlp: DRLP, depth: int, to_induct: bool = False, to_filter_unused_variables: bool = True):
     filename, drlp = read_drlp(drlp)
-    drlp_v, drlp_pq = lib.split_drlp_vpq(drlp)
+    drlp_v, drlp_pq = split_drlp_vpq(drlp)
 
     varibles_v = exec_drlp_v(drlp_v)
     variables_pq = get_variables_pq(drlp_pq)
@@ -300,47 +124,47 @@ def parse_drlps(drlp: DRLP, depth: int, to_induct: bool = False, to_filter_unuse
 def parse_drlps_induction(drlp: str, depth: int, to_filter_unused_variables: bool = True):
     return parse_drlps(drlp, depth, True, to_filter_unused_variables)
 
-def get_variables(drlp: DRLP, to_filter_unused_variables: bool = True):
-    drlp = drlp.obj
-    drlp_v, drlp_pq = lib.split_drlp_vpq(drlp)
-    drlp_p, drlp_q = lib.split_drlp_pq(drlp_pq)
-
-    varibles_v = exec_drlp_v(drlp_v)
-    variables_pq = get_variables_pq(drlp_pq)
-
-    if to_filter_unused_variables:
-        varibles_v = filter_unused_variables(varibles_v, variables_pq)
-
-    return varibles_v
-
-
 
 # %% Parse DRLP V
 def parse_drlp_v(drlp: DRLP, to_filter_unused_variables: bool = True):
     kwargss = get_product(get_variables(drlp))
     filename, drlp = read_drlp(drlp)
-    drlp_v, drlp_pq = lib.split_drlp_vpq(drlp)
-    drlp_p, drlp_q = lib.split_drlp_pq(drlp_pq)
-
+    drlp_v, drlp_pq = split_drlp_vpq(drlp)
+    drlp_p, drlp_q = split_drlp_pq(drlp_pq)
 
     drlps = []
 
     for kwargs in kwargss:
         ast_root_p = ast.parse(drlp_p)
         ast_root_q = ast.parse(drlp_q)
-        transformer = DRLPTransformer_VR(kwargs)
-        ast_root_p = transformer.visit(ast_root_p)
-        ast_root_q = transformer.visit(ast_root_q)
-        ast_root_p = ast.fix_missing_locations(ast_root_p)
-        ast_root_q = ast.fix_missing_locations(ast_root_q)
+        __, (ast_root_p, ast_root_q) = transform(DRLPTransformer_VR(kwargs=kwargs), (ast_root_p, ast_root_q))
 
-        drlp_pi = astor.to_source(ast_root_p)
-        drlp_qi = astor.to_source(ast_root_q)
-        drlp_pqi = "\n".join((drlp_pi, DRLPTransformer.expectation_delimiter, drlp_qi))
+        drlp_pqi = make_drlp(ast_root_p, ast_root_q)
         util.log("## DRLP\n", drlp_pqi)
         drlps.append(DRLP(drlp_pqi, kwargs))
 
     return drlps
+
+
+def parse_drlp_get_constraint(drlp: DRLP, kwgs: dict = {}) -> DNNP:
+    if isinstance(drlp, DNNP):
+        return drlp
+    filename, drlp = read_drlp(drlp)
+    drlp_v, drlp = split_drlp_vpq(drlp)
+    drlp_p, drlp_q = split_drlp_pq(drlp)
+
+    ast_root_p = ast.parse(drlp_p)
+    ast_root_q = ast.parse(drlp_q)
+
+    transformer, (ast_root_p, ast_root_q) = transform(DRLPTransformer_Init(1), (ast_root_p, ast_root_q))
+    input_size = transformer.input_size
+    output_size = transformer.output_size
+
+    __, (ast_root_p, ast_root_q) = transform(DRLPTransformer_RIC(input_size, output_size), (ast_root_p, ast_root_q))
+    __, (ast_root_p, ast_root_q) = transform(DRLPTransformer_REC(), (ast_root_p, ast_root_q))
+
+    drlp_pqi = make_drlp(ast_root_p, ast_root_q)
+    return DRLP(drlp_pqi)
 
 
 if __name__ == "__main__":

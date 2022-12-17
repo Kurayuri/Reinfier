@@ -40,7 +40,7 @@ class DRLPTransformer(ast.NodeTransformer):
     dnnp_forall_id = "Forall"
     dnnp_shape_of_dim_0 = "[0]"
 
-    def __init__(self, depth):
+    def __init__(self, depth=0):
         self.depth = depth
 
         self.input_size = None
@@ -84,10 +84,12 @@ class DRLPTransformer(ast.NodeTransformer):
         self.variables.add(node.id)
         return node
 
+# %% Variables Replacement
+
 
 class DRLPTransformer_VR(DRLPTransformer):
     def __init__(self, kwargs: dict = {}):
-        super().__init__(0)
+        super().__init__()
         self.kwargs = kwargs
 
     def visit_Name(self, node: ast.Name):
@@ -96,6 +98,8 @@ class DRLPTransformer_VR(DRLPTransformer):
                 value=self.kwargs[node.id]
             )
         return node
+
+
 # %% 1. Get input_size and output_size
 #   2. Replace parameters
 #   3. Calculate expression
@@ -103,8 +107,10 @@ class DRLPTransformer_VR(DRLPTransformer):
 
 
 class DRLPTransformer_Init(DRLPTransformer):
-    def __init__(self, depth, kwargs: dict = {}):
+    def __init__(self, depth=0, kwargs: dict = {}):
         self.kwargs = kwargs
+        if kwargs is None:
+            self.kwargs = {}
         super().__init__(depth)
 
     # Read input_size and output_size
@@ -430,8 +436,8 @@ class DRLPTransformer_Induction(DRLPTransformer):
         self.input_size = input_size
         self.output_size = output_size
         self.fix_subsript = to_fix_subscript
-    # Remove Init Constraint
 
+    # Remove Init Constraint
     def visit_Expr(self, node: ast.Expr):
         node = self.generic_visit(node)
         if isinstance(node.value, ast.Compare):
@@ -475,4 +481,59 @@ class DRLPTransformer_Induction(DRLPTransformer):
         return node
 
     def visit_Subscript(self, node: ast.Subscript):
+        return node
+
+# %% Remove Empty Call
+
+
+class DRLPTransformer_REC(DRLPTransformer):
+    def __init__(self,):
+        super().__init__()
+
+    def visit_Expr(self, node: ast.Expr):
+        node = self.generic_visit(node)
+        try:
+            if node.value is None:
+                return None
+        except BaseException:
+            return None
+        return node
+
+    def visit_Call(self, node: ast.Call):
+        node = self.generic_visit(node)
+        if (node.func.id == self.dnnp_and_id or node.func.id == self.dnnp_or_id) and len(node.args) == 0:
+            return None
+        return node
+
+# %% Remove Init Constraint
+
+
+class DRLPTransformer_RIC(DRLPTransformer):
+    def __init__(self, input_size, output_size):
+        super().__init__()
+        self.input_size = input_size
+        self.output_size = output_size
+
+    # Remove Init Constraint
+    def visit_Expr(self, node: ast.Expr):
+        node = self.generic_visit(node)
+        if isinstance(node.value, ast.Compare):
+            elements = [node.value.left] + node.value.comparators
+            init_element = None
+            for element in elements:
+                if isinstance(element, ast.Subscript):
+                    if element.value.id == self.input_id and element.slice.value.value == 0:
+                        init_element = element
+
+            is_init = True
+            if init_element is not None:
+                for element in elements:
+                    if element is not init_element:
+                        if isinstance(element, ast.List):
+                            pass
+                        else:
+                            is_init = False
+
+                if is_init == True:
+                    return None
         return node

@@ -111,6 +111,8 @@ def verify_cubic(network: NN, property: DRLP, verifier: str = None, k_max: int =
         if continue_verify(result):
             i += 1
         else:
+            if len(dims) == 0:
+                break
             i += dims[-1] - coordinate[-1]
 
     return ans
