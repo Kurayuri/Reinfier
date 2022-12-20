@@ -101,9 +101,9 @@ class DRLPTransformer_VR(DRLPTransformer):
 
 
 # %% 1. Get input_size and output_size
-#   2. Replace parameters
-#   3. Calculate expression
-#   4. Unroll For and With
+#    2. Replace parameters
+#    3. Calculate expression
+#    4. Unroll For and With
 
 
 class DRLPTransformer_Init(DRLPTransformer):
@@ -483,10 +483,11 @@ class DRLPTransformer_Induction(DRLPTransformer):
     def visit_Subscript(self, node: ast.Subscript):
         return node
 
-# %% Remove Empty Call
+# %% Remove Simplifiable Call
+# And/Or Call with 0/1 arg
 
 
-class DRLPTransformer_REC(DRLPTransformer):
+class DRLPTransformer_RSC(DRLPTransformer):
     def __init__(self,):
         super().__init__()
 
@@ -501,8 +502,11 @@ class DRLPTransformer_REC(DRLPTransformer):
 
     def visit_Call(self, node: ast.Call):
         node = self.generic_visit(node)
-        if (node.func.id == self.dnnp_and_id or node.func.id == self.dnnp_or_id) and len(node.args) == 0:
-            return None
+        if (node.func.id == self.dnnp_and_id or node.func.id == self.dnnp_or_id):
+            if len(node.args) == 0:
+                return None
+            elif len(node.args) == 1:
+                return node.args[0]
         return node
 
 # %% Remove Init Constraint

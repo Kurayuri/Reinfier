@@ -161,6 +161,7 @@ def transform_pipeline(ast_roots, depth: int, kwargs: dict):
     transformers = [
         DRLPTransformer_1(depth, input_size, output_size),
         DRLPTransformer_2(depth),
+        DRLPTransformer_RSC()
     ]
     for transformer in transformers:
         for ast_root in ast_roots:

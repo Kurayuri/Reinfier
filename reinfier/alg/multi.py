@@ -72,7 +72,7 @@ def get_dims(variables):
 
 
 def verify_linear(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1) -> List[Tuple[DRLP, int, bool]]:
-    drlps = drlp.parse_drlp_v(property)
+    drlps = drlp.parse_drlps_v(property)
 
     ans = []
     for drlp_ in drlps:
@@ -90,7 +90,7 @@ def continue_verify(result):  # TODO: Judge from Variable type
 
 
 def verify_cubic(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1) -> List[Tuple[DRLP, int, bool]]:
-    drlps = drlp.parse_drlp_v(property)
+    drlps = drlp.parse_drlps_v(property)
     variables = drlp.parser.get_variables(property)
     dims = get_dims(variables)
 

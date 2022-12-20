@@ -28,10 +28,6 @@ y >= [[0]]*k
 '''
 
 
-
-
-
-
 # %% Parse DRLP PQ
 def parse_drlp(drlp: DRLP, depth: int, kwgs: dict = {}) -> DNNP:
     if isinstance(drlp, DNNP):
@@ -78,7 +74,7 @@ def parse_drlp_induction(drlp: DRLP, depth: int, kwargs: dict = {}) -> DNNP:
     depth -= 1
 
     ast_root_q_ = ast.parse(drlp_q)
-    (ast_root_q_,), ins, outs = transform_pipeline((ast_root_q_,), depth, kwargs)
+    (ast_root_q_,), __, __ = transform_pipeline((ast_root_q_,), depth, kwargs)
 
     transformer_indction = DRLPTransformer_Induction(depth, input_size, output_size, to_fix_subscript=True)
     ast_root_q_ = transformer_indction.visit(ast_root_q_)
@@ -91,8 +87,8 @@ def parse_drlp_induction(drlp: DRLP, depth: int, kwargs: dict = {}) -> DNNP:
 
     return dnnp
 
-# %% Parse DRLP VPQ
 
+# %% Parse DRLP VPQ
 
 def parse_drlps(drlp: DRLP, depth: int, to_induct: bool = False, to_filter_unused_variables: bool = True):
     filename, drlp = read_drlp(drlp)
@@ -125,8 +121,11 @@ def parse_drlps_induction(drlp: str, depth: int, to_filter_unused_variables: boo
     return parse_drlps(drlp, depth, True, to_filter_unused_variables)
 
 
+
+
+
 # %% Parse DRLP V
-def parse_drlp_v(drlp: DRLP, to_filter_unused_variables: bool = True):
+def parse_drlps_v(drlp: DRLP, to_filter_unused_variables: bool = True):
     kwargss = get_product(get_variables(drlp))
     filename, drlp = read_drlp(drlp)
     drlp_v, drlp_pq = split_drlp_vpq(drlp)
@@ -146,7 +145,10 @@ def parse_drlp_v(drlp: DRLP, to_filter_unused_variables: bool = True):
     return drlps
 
 
-def parse_drlp_get_constraint(drlp: DRLP, kwgs: dict = {}) -> DNNP:
+
+
+
+def parse_drlp_get_constraint(drlp: DRLP) -> DRLP:
     if isinstance(drlp, DNNP):
         return drlp
     filename, drlp = read_drlp(drlp)
@@ -161,11 +163,94 @@ def parse_drlp_get_constraint(drlp: DRLP, kwgs: dict = {}) -> DNNP:
     output_size = transformer.output_size
 
     __, (ast_root_p, ast_root_q) = transform(DRLPTransformer_RIC(input_size, output_size), (ast_root_p, ast_root_q))
-    __, (ast_root_p, ast_root_q) = transform(DRLPTransformer_REC(), (ast_root_p, ast_root_q))
+    __, (ast_root_p, ast_root_q) = transform(DRLPTransformer_RSC(), (ast_root_p, ast_root_q))
 
     drlp_pqi = make_drlp(ast_root_p, ast_root_q)
     return DRLP(drlp_pqi)
 
+
+def parse_constaint_to_code(drlp: DRLP) -> str:
+    filename, drlp = read_drlp(drlp)
+    drlp_v, drlp = split_drlp_vpq(drlp)
+    drlp_p, drlp_q = split_drlp_pq(drlp)
+
+    ast_root_p = ast.parse(drlp_p)
+    ast_root_q = ast.parse(drlp_q)
+    transformer, (ast_root_p, ast_root_q) = transform(DRLPTransformer_Init(1), (ast_root_p, ast_root_q))
+
+    # if len(ast_root_p.body) < 2:
+    #     node_p = ast_root_p.body[0]
+    # else:
+    #     node_p = ast.Call(
+    #         func=ast.Name(id=DRLPTransformer.dnnp_and_id, ctx=ast.Load()),
+    #         args=ast_root_p.body,
+    #         keywords=[]
+    #     )
+    vls = []
+    for exp in ast_root_p.body:
+        ops = exp
+        if isinstance(exp, ast.Expr):
+            ops = exp.value
+            vls.append(ops)
+    node_test = ast.BoolOp(
+        op=ast.And(),
+        values=vls
+    )
+    vls = []
+    for exp in ast_root_q.body:
+        ops = exp
+        if isinstance(exp, ast.Expr):
+            ops = exp.value
+            vls.append(ops)
+    node_test_2 = ast.UnaryOp(
+        op=ast.Not(),
+        operand=ast.BoolOp(
+            op=ast.And(),
+            values=vls
+        )
+    )
+    node_if_ = ast.If(
+        test=node_test_2,
+        body=[
+            ast.Assign(
+                targets=[ast.Name(id='violated', ctx=ast.Store())],
+                value=ast.Constant(value=True, kind=None),
+                type_comment=None,
+            ),
+        ],
+        orelse=[]
+    )
+
+    node_if = ast.If(
+        test=node_test,
+        body=[node_if_],
+        orelse=[]
+    )
+
+    py_node = ast.parse("")
+    py_node.body = [
+        ast.Assign(
+            targets=[ast.Name(id='violated', ctx=ast.Store())],
+            value=ast.Constant(value=False, kind=None),
+            type_comment=None,
+        ),
+        node_if
+    ]
+    py_code = astor.to_source(py_node)
+    return py_code
+
+
+def parse_pq(drlp: DRLP, depth: int, kwargs: dict = {}, to_induct: bool = False) -> DNNP:
+    if to_induct:
+        return parse_drlp_induction(drlp, depth, kwargs)
+    else:
+        return parse_drlp(drlp, depth, kwargs)
+
+def parse_vpq(drlp: DRLP, depth: int, kwargs: dict = {}, to_induct: bool = False, to_filter_unused_variables: bool = True) -> DNNP:
+    return parse_drlps(drlp, depth, to_induct, to_filter_unused_variables)
+
+def parse_v(drlp: DRLP, to_filter_unused_variables: bool = True):
+    return parse_drlps_v(drlp, to_filter_unused_variables)
 
 if __name__ == "__main__":
     parse_drlp(src, 3)

@@ -36,7 +36,7 @@ def select_verifier(networks, properties, verifiers: list = None, network_alias:
             })
             # nn.expander.unroll_nn(network, i))
 
-            code, dnnp = drlp.parser.parse_drlp(property, i)
+            code, dnnp = drlp.parser.parse_pq(property, i)
             properties.append(dnnp)
 
     status = {}
