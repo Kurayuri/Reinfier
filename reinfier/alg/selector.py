@@ -11,9 +11,9 @@ def select_verifier(networks, properties, verifiers: list = None, network_alias:
     util.log("## Selecting verifier...", level=CONSTANT.INFO)
     if verifiers is None:
         if Setting.SelectionFull:
-            verifiers = CONSTANT.VERIFIER
+            verifiers = CONSTANT.VERIFIERS
         else:
-            verifiers = CONSTANT.RUNABLE_VERIFIER
+            verifiers = CONSTANT.RUNABLE_VERIFIERS
     util.log("Runable verifiers:", level=CONSTANT.INFO)
     util.log(verifiers, level=CONSTANT.INFO)
 

@@ -78,7 +78,7 @@ def boot_dnnv(network: NN, property: DNNP, verifier: str,
     if violation is None:
         violation = util.lib.get_savepath([network, property], None, "npy")
 
-    assert verifier in CONSTANT.VERIFIER, "Unsupported verifier: %s" % verifier
+    assert verifier in CONSTANT.VERIFIERS, "Unsupported verifier: %s" % verifier
 
     verifier = "--" + verifier
     dnnv = "dnnv"

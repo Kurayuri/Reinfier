@@ -55,29 +55,24 @@ def make_dnnp(ast_root_p, ast_root_q):
     ast_root_p = ast.fix_missing_locations(ast_root_p)
     ast_root_q = ast.fix_missing_locations(ast_root_q)
 
+    node_pq=[]
     # Add And
-    if len(ast_root_p.body) < 2:
-        node_p = ast_root_p.body[0]
-    else:
-        node_p = ast.Call(
-            func=ast.Name(id=DRLPTransformer.dnnp_and_id, ctx=ast.Load()),
-            args=ast_root_p.body,
-            keywords=[]
-        )
+    for ast_root in [ast_root_p,ast_root_q]:
+        if len(ast_root.body) < 2:
+            node = ast_root.body[0]
+        else:
+            node = ast.Call(
+                func=ast.Name(id=DRLPTransformer.dnnp_and_id, ctx=ast.Load()),
+                args=ast_root.body,
+                keywords=[]
+            )
+        node_pq.append(node)
 
-    if len(ast_root_q.body) < 2:
-        node_q = ast_root_q.body[0]
-    else:
-        node_q = ast.Call(
-            func=ast.Name(id=DRLPTransformer.dnnp_and_id, ctx=ast.Load()),
-            args=ast_root_q.body,
-            keywords=[]
-        )
 
     # Add Impies
     impiles_node = ast.Call(
         func=ast.Name(id=DRLPTransformer.dnnp_impiles_id, ctx=ast.Load()),
-        args=[node_p, node_q],
+        args=node_pq,
         keywords=[]
     )
 

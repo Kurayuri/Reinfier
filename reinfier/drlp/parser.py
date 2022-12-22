@@ -28,8 +28,8 @@ y >= [[0]]*k
 '''
 
 
-# %% Parse DRLP PQ
 def parse_drlp(drlp: DRLP, depth: int, kwgs: dict = {}) -> DNNP:
+    '''Parse DRLP PQ'''
     if isinstance(drlp, DNNP):
         return drlp
 
@@ -50,8 +50,8 @@ def parse_drlp(drlp: DRLP, depth: int, kwgs: dict = {}) -> DNNP:
     return dnnp
 
 
-# %% Parse DRLP PQ for k-induction
 def parse_drlp_induction(drlp: DRLP, depth: int, kwargs: dict = {}) -> DNNP:
+    '''Parse DRLP PQ for k-induction'''
     if isinstance(drlp, DNNP):
         return drlp
 
@@ -88,9 +88,9 @@ def parse_drlp_induction(drlp: DRLP, depth: int, kwargs: dict = {}) -> DNNP:
     return dnnp
 
 
-# %% Parse DRLP VPQ
 
 def parse_drlps(drlp: DRLP, depth: int, to_induct: bool = False, to_filter_unused_variables: bool = True):
+    ''' Parse DRLP VPQ'''
     filename, drlp = read_drlp(drlp)
     drlp_v, drlp_pq = split_drlp_vpq(drlp)
 
@@ -114,18 +114,18 @@ def parse_drlps(drlp: DRLP, depth: int, to_induct: bool = False, to_filter_unuse
 
     return dnnps
 
-# %% Parse DRLP VPQ for k-induction
 
 
 def parse_drlps_induction(drlp: str, depth: int, to_filter_unused_variables: bool = True):
+    ''' Parse DRLP VPQ for k-induction'''
     return parse_drlps(drlp, depth, True, to_filter_unused_variables)
 
 
 
 
 
-# %% Parse DRLP V
 def parse_drlps_v(drlp: DRLP, to_filter_unused_variables: bool = True):
+    ''' Parse DRLP V'''
     kwargss = get_product(get_variables(drlp))
     filename, drlp = read_drlp(drlp)
     drlp_v, drlp_pq = split_drlp_vpq(drlp)
@@ -241,15 +241,18 @@ def parse_constaint_to_code(drlp: DRLP) -> str:
 
 
 def parse_pq(drlp: DRLP, depth: int, kwargs: dict = {}, to_induct: bool = False) -> DNNP:
+    '''API to parse DRLP_PQ part'''
     if to_induct:
         return parse_drlp_induction(drlp, depth, kwargs)
     else:
         return parse_drlp(drlp, depth, kwargs)
 
 def parse_vpq(drlp: DRLP, depth: int, kwargs: dict = {}, to_induct: bool = False, to_filter_unused_variables: bool = True) -> DNNP:
+    '''API to parse DRLP_VPQ part'''
     return parse_drlps(drlp, depth, to_induct, to_filter_unused_variables)
 
 def parse_v(drlp: DRLP, to_filter_unused_variables: bool = True):
+    '''API to parse DRLP_V part'''
     return parse_drlps_v(drlp, to_filter_unused_variables)
 
 if __name__ == "__main__":
