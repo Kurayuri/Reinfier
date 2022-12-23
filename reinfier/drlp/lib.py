@@ -22,7 +22,7 @@ dedent_closing_brackets = true
 
 def split_drlp_pq(drlp):
     try:
-        drlp = re.split("%s[^\n]*\n" % (DRLPTransformer.expectation_delimiter), drlp)
+        drlp = re.split("%s[^\n]*\n" % (DRLPTransformer.EXPECTATION_DELIMITER), drlp)
         if len(drlp) != 2:
             raise Exception
     except Exception:
@@ -32,7 +32,7 @@ def split_drlp_pq(drlp):
 
 def split_drlp_vpq(drlp):
     try:
-        drlp = re.split("%s[^\n]*\n" % (DRLPTransformer.precondition_delimiter), drlp)
+        drlp = re.split("%s[^\n]*\n" % (DRLPTransformer.PRECONDITION_DELIMITER), drlp)
         if len(drlp) != 2:
             drlp.insert(0, "")
     except Exception as e:
@@ -55,31 +55,30 @@ def make_dnnp(ast_root_p, ast_root_q):
     ast_root_p = ast.fix_missing_locations(ast_root_p)
     ast_root_q = ast.fix_missing_locations(ast_root_q)
 
-    node_pq=[]
+    node_pq = []
     # Add And
-    for ast_root in [ast_root_p,ast_root_q]:
+    for ast_root in [ast_root_p, ast_root_q]:
         if len(ast_root.body) < 2:
             node = ast_root.body[0]
         else:
             node = ast.Call(
-                func=ast.Name(id=DRLPTransformer.dnnp_and_id, ctx=ast.Load()),
+                func=ast.Name(id=DRLPTransformer.DNNP_AND_ID, ctx=ast.Load()),
                 args=ast_root.body,
                 keywords=[]
             )
         node_pq.append(node)
 
-
     # Add Impies
     impiles_node = ast.Call(
-        func=ast.Name(id=DRLPTransformer.dnnp_impiles_id, ctx=ast.Load()),
+        func=ast.Name(id=DRLPTransformer.DNNP_IMPILES_ID, ctx=ast.Load()),
         args=node_pq,
         keywords=[]
     )
 
     forall_node = ast.Expr(ast.Call(
-        func=ast.Name(id=DRLPTransformer.dnnp_forall_id, ctx=ast.Load()),
+        func=ast.Name(id=DRLPTransformer.DNNP_FORALL_ID, ctx=ast.Load()),
         args=[
-            ast.Name(id=DRLPTransformer.dnnp_input_id, ctx=ast.Load()),
+            ast.Name(id=DRLPTransformer.DNNP_FORALL_ID, ctx=ast.Load()),
             impiles_node],
         keywords=[]
     ))
@@ -101,7 +100,7 @@ def make_dnnp(ast_root_p, ast_root_q):
         ),
         ast.Assign(
             targets=[
-                ast.Name(id=DRLPTransformer.dnnp_network_alias, ctx=ast.Store)],
+                ast.Name(id=DRLPTransformer.DNNP_NETWORK_ALIAS, ctx=ast.Store)],
             value=ast.Name(id='''Network("N")''', ctx=ast.Load())
         ),
         forall_node]
@@ -127,7 +126,7 @@ def make_drlp(ast_root_p, ast_root_q):
 
     drlp_pi = astor.to_source(ast_root_p)
     drlp_qi = astor.to_source(ast_root_q)
-    drlp_pqi = "\n".join((drlp_pi, DRLPTransformer.expectation_delimiter, drlp_qi))
+    drlp_pqi = "\n".join((drlp_pi, DRLPTransformer.EXPECTATION_DELIMITER, drlp_qi))
 
     return drlp_pqi
 

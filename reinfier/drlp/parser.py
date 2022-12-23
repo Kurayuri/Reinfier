@@ -8,6 +8,8 @@ import ast
 import astpretty
 import yapf
 import astor
+VIOLATED_ID="violated"
+
 
 
 src = '''
@@ -139,7 +141,7 @@ def parse_drlps_v(drlp: DRLP, to_filter_unused_variables: bool = True):
         __, (ast_root_p, ast_root_q) = transform(DRLPTransformer_VR(kwargs=kwargs), (ast_root_p, ast_root_q))
 
         drlp_pqi = make_drlp(ast_root_p, ast_root_q)
-        util.log("## DRLP\n", drlp_pqi)
+        util.log("## DRLP:\n", drlp_pqi)
         drlps.append(DRLP(drlp_pqi, kwargs))
 
     return drlps
@@ -213,7 +215,7 @@ def parse_constaint_to_code(drlp: DRLP) -> str:
         test=node_test_2,
         body=[
             ast.Assign(
-                targets=[ast.Name(id='violated', ctx=ast.Store())],
+                targets=[ast.Name(id=VIOLATED_ID, ctx=ast.Store())],
                 value=ast.Constant(value=True, kind=None),
                 type_comment=None,
             ),
@@ -230,7 +232,7 @@ def parse_constaint_to_code(drlp: DRLP) -> str:
     py_node = ast.parse("")
     py_node.body = [
         ast.Assign(
-            targets=[ast.Name(id='violated', ctx=ast.Store())],
+            targets=[ast.Name(id=VIOLATED_ID, ctx=ast.Store())],
             value=ast.Constant(value=False, kind=None),
             type_comment=None,
         ),

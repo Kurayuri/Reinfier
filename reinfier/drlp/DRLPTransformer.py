@@ -22,23 +22,23 @@ class DRLPParsingError(Exception):
 
 
 class DRLPTransformer(ast.NodeTransformer):
-    input_size_id = "x_size"
-    output_size_id = "y_size"
-    input_id = "x"
-    output_id = "y"
-    expectation_delimiter = "@Exp"
-    precondition_delimiter = "@Pre"
-    dnnp_input_id = "x"
-    dnnp_network_alias = "N"
-    dnnp_output_id = "%s(%s)" % (
-        dnnp_network_alias, dnnp_input_id)
-    depth_id = "k"
+    INPUT_SIZE_ID = "x_size"
+    OUTPUT_SIZE_ID = "y_size"
+    INPUT_ID = "x"
+    OUTPUT_ID = "y"
+    EXPECTATION_DELIMITER = "@Exp"
+    PRECONDITION_DELIMITER = "@Pre"
+    DNNP_INPUT_ID = "x"
+    DNNP_NETWORK_ALIAS = "N"
+    DNNP_OUTPUT_ID = "%s(%s)" % (
+        DNNP_NETWORK_ALIAS, DNNP_INPUT_ID)
+    DEPTH_ID = "k"
 
-    dnnp_and_id = "And"
-    dnnp_or_id = "Or"
-    dnnp_impiles_id = "Implies"
-    dnnp_forall_id = "Forall"
-    dnnp_shape_of_dim_0 = "[0]"
+    DNNP_AND_ID = "And"
+    DNNP_OR_ID = "Or"
+    DNNP_IMPILES_ID = "Implies"
+    DNNP_FORALL_ID = "Forall"
+    DNNP_SHAPE_OF_DIM_0 = "[0]"
 
     def __init__(self, depth=0):
         self.depth = depth
@@ -120,13 +120,13 @@ class DRLPTransformer_Init(DRLPTransformer):
         '''Read input_size and output_size'''
         node = self.generic_visit(node)
         for target in node.targets:
-            if target.id == self.input_size_id:
+            if target.id == self.INPUT_SIZE_ID:
                 if self.input_size is None:
                     self.input_size = node.value.value
                     return None
                 else:
                     assert self.input_size == node.value.value, "input sizes are not equal"
-            if target.id == self.output_size_id:
+            if target.id == self.OUTPUT_SIZE_ID:
                 if self.output_size is None:
                     self.output_size = node.value.value
                     return None
@@ -152,7 +152,7 @@ class DRLPTransformer_Init(DRLPTransformer):
         io_element = None
         for element in elements:
             if isinstance(element, ast.Name):
-                if element.id == self.input_id or element.id == self.output_id:
+                if element.id == self.INPUT_ID or element.id == self.OUTPUT_ID:
                     io_element = element
         size = None
         if io_element is not None:
@@ -160,12 +160,12 @@ class DRLPTransformer_Init(DRLPTransformer):
                 if element is not io_element and self.is_dim_n_List(element, 2):
                     size = len(element.elts[0].elts)
         if size is not None:
-            if io_element.id == self.input_id:
+            if io_element.id == self.INPUT_ID:
                 if self.input_size is None:
                     self.input_size = size
                 else:
                     assert self.input_size == size, "input sizes are not equal"
-            if io_element.id == self.output_id:
+            if io_element.id == self.OUTPUT_ID:
                 if self.output_size is None:
                     self.output_size = size
                 else:
@@ -198,7 +198,7 @@ class DRLPTransformer_Init(DRLPTransformer):
 
             if node.iter.func.id == "range":
                 args = self.flatten_list(args)
-                id = self.dnnp_and_id
+                id = self.DNNP_AND_ID
                 node = ast.Expr(
                     ast.Call(
                         func=ast.Name(id=id, ctx=ast.Load()),
@@ -210,13 +210,13 @@ class DRLPTransformer_Init(DRLPTransformer):
                 for arg in args:
                     if len(arg) > 1:
                         args_connect.append(ast.Call(
-                            func=ast.Name(id=self.dnnp_and_id, ctx=ast.Load()),
+                            func=ast.Name(id=self.DNNP_AND_ID, ctx=ast.Load()),
                             args=arg,
                             keywords=[]
                         ))
                     else:
                         args_connect.append(arg[0])
-                id = self.dnnp_or_id
+                id = self.DNNP_OR_ID
                 node = ast.Expr(
                     ast.Call(
                         func=ast.Name(id=id, ctx=ast.Load()),
@@ -228,7 +228,7 @@ class DRLPTransformer_Init(DRLPTransformer):
         return node
 
     def visit_Name(self, node: ast.Name):
-        if node.id == self.depth_id:
+        if node.id == self.DEPTH_ID:
             return ast.Constant(
                 value=self.depth
             )
@@ -249,7 +249,7 @@ class DRLPTransformer_Init(DRLPTransformer):
             # if node.name=="orange":
             node = ast.Expr(
                 ast.Call(
-                    func=ast.Name(id=self.dnnp_or_id, ctx=ast.Load()),
+                    func=ast.Name(id=self.DNNP_OR_ID, ctx=ast.Load()),
                     args=node.body,
                     keywords=[]
                 ))
@@ -257,7 +257,7 @@ class DRLPTransformer_Init(DRLPTransformer):
             # if node.name=="range":
             node = ast.Expr(
                 ast.Call(
-                    func=ast.Name(id=self.dnnp_and_id, ctx=ast.Load()),
+                    func=ast.Name(id=self.DNNP_AND_ID, ctx=ast.Load()),
                     args=node.body,
                     keywords=[]
                 ))
@@ -282,13 +282,13 @@ class DRLPTransformer_1(DRLPTransformer):
             # Dim 1
             if isinstance(node.value, ast.Name):
                 node = self.generic_visit(node)
-                if node.value.id == self.input_id or node.value.id == self.output_id:
+                if node.value.id == self.INPUT_ID or node.value.id == self.OUTPUT_ID:
                     if isinstance(node.slice, ast.Constant):
                         index = node.slice.value
-                        if node.value.id == self.input_id:
+                        if node.value.id == self.INPUT_ID:
                             lower = index * self.input_size
                             upper = lower + self.input_size
-                        if node.value.id == self.output_id:
+                        if node.value.id == self.OUTPUT_ID:
                             lower = index * self.output_size
                             upper = lower + self.output_size
 
@@ -305,12 +305,12 @@ class DRLPTransformer_1(DRLPTransformer):
                 self.generic_visit(node.value.value)
                 self.generic_visit(node.value.slice)
                 self.generic_visit(node.slice)
-                if node.value.value.id == self.input_id or node.value.value.id == self.output_id:
+                if node.value.value.id == self.INPUT_ID or node.value.value.id == self.OUTPUT_ID:
                     if isinstance(node.value.slice, ast.Constant):
                         index = node.value.slice.value
-                        if node.value.value.id == self.input_id:
+                        if node.value.value.id == self.INPUT_ID:
                             lower = index * self.input_size
-                        if node.value.value.id == self.output_id:
+                        if node.value.value.id == self.OUTPUT_ID:
                             lower = index * self.output_size
                 if index is not None:
                     if isinstance(node.slice, ast.Constant):
@@ -334,23 +334,23 @@ class DRLPTransformer_1(DRLPTransformer):
             # Dim 1
             if isinstance(node.value, ast.Name):
                 node = self.generic_visit(node)
-                if node.value.id == self.input_id or node.value.id == self.output_id:
+                if node.value.id == self.INPUT_ID or node.value.id == self.OUTPUT_ID:
                     if isinstance(node.slice, ast.Slice):
                         index = node.slice.lower.value
-                        if node.value.id == self.input_id:
+                        if node.value.id == self.INPUT_ID:
                             lower = node.slice.lower.value * self.input_size
                             upper = node.slice.upper.value * self.input_size
-                        if node.value.id == self.output_id:
+                        if node.value.id == self.OUTPUT_ID:
                             lower = node.slice.lower.value * self.output_size
                             upper = node.slice.upper.value * self.output_size
                     # if isinstance(node.slice,ast.Slice):
                     #     pass
                     elif isinstance(node.slice.value, ast.Constant):
                         index = node.slice.value.value
-                        if node.value.id == self.input_id:
+                        if node.value.id == self.INPUT_ID:
                             lower = index * self.input_size
                             upper = lower + self.input_size
-                        if node.value.id == self.output_id:
+                        if node.value.id == self.OUTPUT_ID:
                             lower = index * self.output_size
                             upper = lower + self.output_size
                 if index is not None:
@@ -367,12 +367,12 @@ class DRLPTransformer_1(DRLPTransformer):
                 self.generic_visit(node.value.value)
                 self.generic_visit(node.value.slice)
                 self.generic_visit(node.slice)
-                if node.value.value.id == self.input_id or node.value.value.id == self.output_id:
+                if node.value.value.id == self.INPUT_ID or node.value.value.id == self.OUTPUT_ID:
                     if isinstance(node.value.slice.value, ast.Constant):
                         index = node.value.slice.value.value
-                        if node.value.value.id == self.input_id:
+                        if node.value.value.id == self.INPUT_ID:
                             lower = index * self.input_size
-                        if node.value.value.id == self.output_id:
+                        if node.value.value.id == self.OUTPUT_ID:
                             lower = index * self.output_size
                 if index is not None:
                     if isinstance(node.slice, ast.Index):
@@ -412,14 +412,14 @@ class DRLPTransformer_2(DRLPTransformer):
         super().__init__(depth)
 
     def visit_Name(self, node: ast.Name):
-        if node.id == self.input_id:
+        if node.id == self.INPUT_ID:
             return ast.Name(
-                id=self.dnnp_input_id + self.dnnp_shape_of_dim_0,
+                id=self.DNNP_INPUT_ID + self.DNNP_SHAPE_OF_DIM_0,
                 ctx=ast.Load()
             )
-        if node.id == self.output_id:
+        if node.id == self.OUTPUT_ID:
             return ast.Name(
-                id=self.dnnp_output_id + self.dnnp_shape_of_dim_0,
+                id=self.DNNP_OUTPUT_ID + self.DNNP_SHAPE_OF_DIM_0,
                 ctx=ast.Load()
             )
         return node
@@ -456,7 +456,7 @@ class DRLPTransformer_Induction(DRLPTransformer):
             init_element = None
             for element in elements:
                 if isinstance(element, ast.Subscript):
-                    if element.value.id == self.dnnp_input_id + self.dnnp_shape_of_dim_0:
+                    if element.value.id == self.DNNP_INPUT_ID + self.DNNP_SHAPE_OF_DIM_0:
                         if (element.slice.lower.value == self.input_size * 0 and
                                 element.slice.upper.value == self.input_size * 1):
                             init_element = element
@@ -477,13 +477,13 @@ class DRLPTransformer_Induction(DRLPTransformer):
     def visit_Name(self, node: ast.Name):
         '''Fix Input and Output Subscript Size Transform'''
         if self.fix_subsript == True:
-            if node.id == self.dnnp_input_id + self.dnnp_shape_of_dim_0:
+            if node.id == self.DNNP_INPUT_ID + self.DNNP_SHAPE_OF_DIM_0:
                 return ast.Name(
                     id=node.id +
                     "[0:%d]" % (self.depth * self.input_size),
                     ctx=ast.Load()
                 )
-            if node.id == self.dnnp_output_id + self.dnnp_shape_of_dim_0:
+            if node.id == self.DNNP_OUTPUT_ID + self.DNNP_SHAPE_OF_DIM_0:
                 return ast.Name(
                     id=node.id +
                     "[0:%d]" % (self.depth * self.output_size),
@@ -515,7 +515,7 @@ class DRLPTransformer_RSC(DRLPTransformer):
 
     def visit_Call(self, node: ast.Call):
         node = self.generic_visit(node)
-        if (node.func.id == self.dnnp_and_id or node.func.id == self.dnnp_or_id):
+        if (node.func.id == self.DNNP_AND_ID or node.func.id == self.DNNP_OR_ID):
             if len(node.args) == 0:
                 return None
             elif len(node.args) == 1:
@@ -541,7 +541,7 @@ class DRLPTransformer_RIC(DRLPTransformer):
             init_element = None
             for element in elements:
                 if isinstance(element, ast.Subscript):
-                    if element.value.id == self.input_id and element.slice.value.value == 0:
+                    if element.value.id == self.INPUT_ID and element.slice.value.value == 0:
                         init_element = element
 
             is_init = True
