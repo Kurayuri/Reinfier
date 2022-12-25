@@ -25,7 +25,7 @@ class Reintrainer:
     def __init__(self, properties: List[DRLP], curriculum_chosen_func: Callable,
                  init_model_path: str, verifier: str,
                  train_api: Union[Callable, str], test_api: Union[Callable, str],
-                 save_path: str
+                 save_path: str, onnx_filename: str = "model.onnx"
                  ):
         self.properties = properties
         self.properties_apply = []
@@ -40,7 +40,7 @@ class Reintrainer:
         self.train_api = train_api
         self.test_api = test_api
 
-        self.model_name = "model.onnx"
+        self.onnx_filename = onnx_filename
 
         self.save_path = save_path
         self.model_select = 'latest'
@@ -48,7 +48,7 @@ class Reintrainer:
     def train(self, round: int, step: int):
         for rnd in range(round):
             util.log_prompt(4)
-            util.log("*"*20+" Round %d "%rnd+"*"*20,level=CONSTANT.WARNING)
+            util.log("*" * 20 + " Round %d " % rnd + "*" * 20, level=CONSTANT.WARNING)
 
             # optimizer = BayesianOptimization()
             # optimizer.maximize()
@@ -69,11 +69,7 @@ class Reintrainer:
             # %% Train
             util.log_prompt(3)
             util.log("########## Training Part ##########\n", level=CONSTANT.INFO)
-            self.next_model_path = self.save_path + "/" + "bo_%d" % rnd
-            try:
-                os.mkdir(self.next_model_path)
-            except BaseException:
-                pass
+            self.next_model_path = self.get_next_model_path(rnd)
 
             self.call_train_api(self.train_api,
                                 curr_model_path=self.curr_model_path,
@@ -107,7 +103,7 @@ class Reintrainer:
 
             # subprocess.run(cmd.split(' '))
             # proc = subprocess.run(cmd.split(" "), capture_output=True, text=True)
-            proc = subprocess.run(cmd,shell=True,capture_output=True)
+            proc = subprocess.run(cmd, shell=True, capture_output=False)
             # dnnv_stdout = proc.stdout
             # dnnv_stderr = proc.stderr
             # print(dnnv_stderr)
@@ -119,6 +115,14 @@ class Reintrainer:
         if isinstance(code, str):
             del code
         return locals()
+
+    def get_next_model_path(self, rnd: int):
+        path = self.save_path + "/" + "bo_%d" % rnd
+        try:
+            os.mkdir(self.next_model_path)
+        except BaseException:
+            pass
+        return path
 
     def reward(self, x, y, reward: float):
         for property in self.properties:
@@ -134,9 +138,7 @@ class Reintrainer:
         return reward
 
     def load_model(self, path: str) -> NN:
-        subprocess.run(f"python -m tf2onnx.convert --checkpoint {path}/model_step_0.ckpt.meta --inputs input/Ob:0 --output model.onnx --outputs model/pi/add:0 --opset 9 --output {path}/{self.model_name}",shell=True,capture_output=True)
-
-        return NN(path + "/" + self.model_name)
+        return NN(path + "/" + self.onnx_filename)
 
     # def get_model_from(path: str, opt='latest') -> str:
     #     if opt == 'latest':
