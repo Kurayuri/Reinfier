@@ -78,7 +78,7 @@ def make_dnnp(ast_root_p, ast_root_q):
     forall_node = ast.Expr(ast.Call(
         func=ast.Name(id=DRLPTransformer.DNNP_FORALL_ID, ctx=ast.Load()),
         args=[
-            ast.Name(id=DRLPTransformer.DNNP_FORALL_ID, ctx=ast.Load()),
+            ast.Name(id=DRLPTransformer.DNNP_INPUT_ID, ctx=ast.Load()),
             impiles_node],
         keywords=[]
     ))
@@ -144,12 +144,15 @@ def transform(transformer: DRLPTransformer, ast_roots):
     return transformer, ast_roots
 
 
-def transform_pipeline(ast_roots, depth: int, kwargs: dict):
+def transform_pipeline(ast_roots, depth: int, kwargs: dict, input_size: int = None, output_size: int = None):
     transformer_init = DRLPTransformer_Init(depth, kwargs)
     for ast_root in ast_roots:
         ast_root = transformer_init.visit(ast_root)
-    input_size = transformer_init.input_size
-    output_size = transformer_init.output_size
+
+    if input_size is None:
+        input_size = transformer_init.input_size
+    if output_size is None:
+        output_size = transformer_init.output_size
     variables = transformer_init.variables
 
     transformers = [

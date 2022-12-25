@@ -8,8 +8,7 @@ import ast
 import astpretty
 import yapf
 import astor
-VIOLATED_ID="violated"
-
+VIOLATED_ID = "violated"
 
 
 src = '''
@@ -76,7 +75,7 @@ def parse_drlp_induction(drlp: DRLP, depth: int, kwargs: dict = {}) -> DNNP:
     depth -= 1
 
     ast_root_q_ = ast.parse(drlp_q)
-    (ast_root_q_,), __, __ = transform_pipeline((ast_root_q_,), depth, kwargs)
+    (ast_root_q_,), __, __ = transform_pipeline((ast_root_q_,), depth, kwargs, input_size, output_size)
 
     transformer_indction = DRLPTransformer_Induction(depth, input_size, output_size, to_fix_subscript=True)
     ast_root_q_ = transformer_indction.visit(ast_root_q_)
@@ -88,7 +87,6 @@ def parse_drlp_induction(drlp: DRLP, depth: int, kwargs: dict = {}) -> DNNP:
     dnnp = save_dnnp(dnnp_root, filename.rsplit(".")[0] + "!ind", depth)
 
     return dnnp
-
 
 
 def parse_drlps(drlp: DRLP, depth: int, to_induct: bool = False, to_filter_unused_variables: bool = True):
@@ -117,13 +115,9 @@ def parse_drlps(drlp: DRLP, depth: int, to_induct: bool = False, to_filter_unuse
     return dnnps
 
 
-
 def parse_drlps_induction(drlp: str, depth: int, to_filter_unused_variables: bool = True):
     ''' Parse DRLP VPQ for k-induction'''
     return parse_drlps(drlp, depth, True, to_filter_unused_variables)
-
-
-
 
 
 def parse_drlps_v(drlp: DRLP, to_filter_unused_variables: bool = True):
@@ -145,9 +139,6 @@ def parse_drlps_v(drlp: DRLP, to_filter_unused_variables: bool = True):
         drlps.append(DRLP(drlp_pqi, kwargs))
 
     return drlps
-
-
-
 
 
 def parse_drlp_get_constraint(drlp: DRLP) -> DRLP:
@@ -249,13 +240,16 @@ def parse_pq(drlp: DRLP, depth: int, kwargs: dict = {}, to_induct: bool = False)
     else:
         return parse_drlp(drlp, depth, kwargs)
 
+
 def parse_vpq(drlp: DRLP, depth: int, kwargs: dict = {}, to_induct: bool = False, to_filter_unused_variables: bool = True) -> DNNP:
     '''API to parse DRLP_VPQ part'''
     return parse_drlps(drlp, depth, to_induct, to_filter_unused_variables)
 
+
 def parse_v(drlp: DRLP, to_filter_unused_variables: bool = True):
     '''API to parse DRLP_V part'''
     return parse_drlps_v(drlp, to_filter_unused_variables)
+
 
 if __name__ == "__main__":
     parse_drlp(src, 3)
