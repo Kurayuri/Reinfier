@@ -9,6 +9,7 @@ import astpretty
 import yapf
 import astor
 VIOLATED_ID = "violated"
+IS_VIOLATED_ID = "is_violated"
 
 
 src = '''
@@ -171,39 +172,23 @@ def parse_constaint_to_code(drlp: DRLP) -> str:
     ast_root_q = ast.parse(drlp_q)
     transformer, (ast_root_p, ast_root_q) = transform(DRLPTransformer_Init(1), (ast_root_p, ast_root_q))
 
-    # if len(ast_root_p.body) < 2:
-    #     node_p = ast_root_p.body[0]
-    # else:
-    #     node_p = ast.Call(
-    #         func=ast.Name(id=DRLPTransformer.dnnp_and_id, ctx=ast.Load()),
-    #         args=ast_root_p.body,
-    #         keywords=[]
-    #     )
-    vls = []
-    for exp in ast_root_p.body:
-        ops = exp
-        if isinstance(exp, ast.Expr):
-            ops = exp.value
-            vls.append(ops)
-    node_test = ast.BoolOp(
-        op=ast.And(),
-        values=vls
-    )
-    vls = []
+    # Expectation if test
+    values = []
     for exp in ast_root_q.body:
         ops = exp
         if isinstance(exp, ast.Expr):
             ops = exp.value
-            vls.append(ops)
-    node_test_2 = ast.UnaryOp(
+            values.append(ops)
+    node_q_test = ast.UnaryOp(
         op=ast.Not(),
         operand=ast.BoolOp(
             op=ast.And(),
-            values=vls
+            values=values
         )
     )
-    node_if_ = ast.If(
-        test=node_test_2,
+    # Expectation if
+    node_q_if = ast.If(
+        test=node_q_test,
         body=[
             ast.Assign(
                 targets=[ast.Name(id=VIOLATED_ID, ctx=ast.Store())],
@@ -214,20 +199,48 @@ def parse_constaint_to_code(drlp: DRLP) -> str:
         orelse=[]
     )
 
-    node_if = ast.If(
-        test=node_test,
-        body=[node_if_],
+    # Precondition if test
+    values = []
+    for exp in ast_root_p.body:
+        ops = exp
+        if isinstance(exp, ast.Expr):
+            ops = exp.value
+            values.append(ops)
+    node_p_test = ast.BoolOp(
+        op=ast.And(),
+        values=values
+    )
+    # Precondition if
+    node_p_if = ast.If(
+        test=node_p_test,
+        body=[node_q_if],
         orelse=[]
     )
 
     py_node = ast.parse("")
     py_node.body = [
-        ast.Assign(
-            targets=[ast.Name(id=VIOLATED_ID, ctx=ast.Store())],
-            value=ast.Constant(value=False, kind=None),
-            type_comment=None,
-        ),
-        node_if
+        ast.FunctionDef(
+            name=IS_VIOLATED_ID,
+            args=ast.arguments(
+                args=[
+                    ast.arg(arg=DRLPTransformer.INPUT_ID,annotation=None),
+                    ast.arg(arg=DRLPTransformer.OUTPUT_ID,annotation=None),
+                ],
+                defaults=[],vararg=None,kwarg=None
+            ),
+            body=[
+                ast.Assign(
+                    targets=[ast.Name(id=VIOLATED_ID, ctx=ast.Store())],
+                    value=ast.Constant(value=False, kind=None),
+                    type_comment=None,
+                ),
+                node_p_if,
+                ast.Return(
+                    value=ast.Name(id=VIOLATED_ID, ctx=ast.Load())
+                )
+            ],
+            decorator_list=[]
+        )
     ]
     py_code = astor.to_source(py_node)
     return py_code

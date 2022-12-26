@@ -44,6 +44,7 @@ class Reintrainer:
 
         self.save_path = save_path
         self.model_select = 'latest'
+        self.reward_api = "reward_api.py"
 
     def train(self, round: int, step: int):
         for rnd in range(round):
@@ -71,37 +72,36 @@ class Reintrainer:
             util.log("########## Training Part ##########\n", level=CONSTANT.INFO)
             self.next_model_path = self.get_next_model_path(rnd)
 
-            self.call_train_api(self.train_api,
-                                curr_model_path=self.curr_model_path,
-                                next_model_path=self.next_model_path,
-                                total_timestep=step,
-                                reward_api=self.reward)
+            self.generate_constant()
+
+            self.call_train_api(total_timestep=step)
 
             self.curr_model_path = self.next_model_path
             util.log("\n## Current model path: \n%s" % self.curr_model_path, level=CONSTANT.INFO)
 
-    def call_train_api(self, api, **kwargs):
-        if isinstance(api, Callable):
-            api(kwargs)
-        elif isinstance(api, str):
+    def generate_constant(self):
+        code = self.get_constraint(self.properties[0])
+        with open(f"{self.next_model_path}/reward_api.py", "w") as f:
+            f.write(code)
 
-            # cmd = "mpiexec -np {nproc} python src/simulator/train_rl.py " \
-            cmd = api
-            cmd += " " \
-                f"--next_model_path {kwargs['next_model_path']} " \
+    def call_train_api(self, **kwargs):
+        if isinstance(self.train_api, Callable):
+            self.train_api(kwargs)
+        elif isinstance(self.train_api, str):
+            cmd = self.train_api +" " \
+                f"--next_model_path {self.next_model_path} " \
                 f"--total_timestep  {kwargs['total_timestep']} " \
+                f"--reward_api      {self.reward_api} " \
                 ""
-            # f"--reward_api      {kwargs['reward_api']} "
-
-            if kwargs["curr_model_path"]:
-                cmd += f"--curr_model_path {kwargs['curr_model_path']} "
+                
+            if self.curr_model_path:
+                cmd += f"--curr_model_path {self.curr_model_path} "
 
             util.log(cmd, level=CONSTANT.INFO)
             # with subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as process:
             #     for line in process.stdout:
             #         util.log(line.decode('utf8'))
 
-            # subprocess.run(cmd.split(' '))
             # proc = subprocess.run(cmd.split(" "), capture_output=True, text=True)
             proc = subprocess.run(cmd, shell=True, capture_output=False)
             # dnnv_stdout = proc.stdout
@@ -110,29 +110,31 @@ class Reintrainer:
             # print("\n")
             # print(dnnv_stdout)
 
+    def get_constraint(self, property):   # TODO
+        constraint = drlp.parse_drlp_get_constraint(property)
+        util.log("## Constraint:\n", constraint.obj)
+        util.log(constraint.obj)
+        code = drlp.parse_constaint_to_code(constraint)
+        return code
+
     def exec_constraint(self, code, x, y):
         exec(code)
-        if isinstance(code, str):
-            del code
-        return locals()
+        return locals()[drlp.IS_VIOLATED_ID](x, y)
 
     def get_next_model_path(self, rnd: int):
         path = self.save_path + "/" + "bo_%d" % rnd
         try:
-            os.mkdir(self.next_model_path)
-        except BaseException:
-            pass
+            os.makedirs(path, exist_ok=True)
+        except Exception as e:
+            print(e)
         return path
 
     def reward(self, x, y, reward: float):
         for property in self.properties:
             x = [x]
             y = [y]
-            constraint = drlp.parse_drlp_get_constraint(property)
-            util.log("## Constraint:\n", constraint.obj)
-            util.log(constraint.obj)
-            code = drlp.parse_constaint_to_code(constraint)
-            violated = self.exec_constraint(code, x, y)[drlp.VIOLATED_ID]
+            code = self.get_constraint(property)
+            violated = self.exec_constraint(code, x, y)
             if violated:
                 reward = -4.5
         return reward

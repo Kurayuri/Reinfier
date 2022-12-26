@@ -26,8 +26,8 @@ class DRLPTransformer(ast.NodeTransformer):
     OUTPUT_SIZE_ID = "y_size"
     INPUT_ID = "x"
     OUTPUT_ID = "y"
-    EXPECTATION_DELIMITER = "@Exp"
     PRECONDITION_DELIMITER = "@Pre"
+    EXPECTATION_DELIMITER = "@Exp"
     DNNP_INPUT_ID = "x"
     DNNP_NETWORK_ALIAS = "N"
     DNNP_OUTPUT_ID = "%s(%s)" % (
