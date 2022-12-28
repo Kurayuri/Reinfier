@@ -85,7 +85,29 @@ def verify_linear(network: NN, property: DRLP, verifier: str = None, k_max: int 
     return ans
 
 
-def continue_verify(result):  # TODO: Judge from Variable type
+def search_boundary(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1, kwargs: dict = {}, accuracy: float = 1e-2) -> List[Tuple[DRLP, int, bool]]:
+    variable, boundary = kwargs.items()[0]
+    top = boundary[1]
+    bottom = boundary[0]
+    value = top
+    drlp_ = drlp.editor.overwrite(property, f"{variable}={value}")
+    k, result_top = verify(network, drlp_, verifier=verifier, k_max=k_max, k_min=k_min)
+    value = bottom
+    drlp_ = drlp.editor.overwrite(property, f"{variable}={value}")
+    k, result_bottom = verify(network, drlp_, verifier=verifier, k_max=k_max, k_min=k_min)
+
+    while top - bottom > accuracy:
+        value = (top + bottom) / 2
+        drlp_ = drlp.editor.overwrite(property, f"{variable}={value}")
+        k, result = verify(network, drlp_, verifier=verifier, k_max=k_max, k_min=k_min)
+        if result == result_bottom:
+            bottom = value
+        elif result == result_top:
+            top = value
+    return value
+
+
+def continue_verify(result):  # TODO: Check from Variable type
     return result == True
 
 
