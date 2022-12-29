@@ -8,6 +8,7 @@ from .. import nn
 from .. import util
 from .. import CONSTANT
 from .. import Setting
+from typing import Tuple
 
 import re
 import sys
@@ -72,9 +73,9 @@ def extract_stdout_ans(stdout):
 
 
 def boot_dnnv(network: NN, property: DNNP, verifier: str,
-              network_alias: str = "N", violation: str = None):
+              network_alias: str = "N", violation: str = None) -> Tuple[bool, bool, float]:
     network = network.path
-    property=property.path
+    property = property.path
     if violation is None:
         violation = util.lib.get_savepath([network, property], None, "npy")
 
@@ -174,10 +175,3 @@ def boot_dnnv(network: NN, property: DNNP, verifier: str,
         break
     util.log_prompt(2)
     return runable, result, time
-
-
-if __name__ == "__main__":
-    verifier = "marabou"
-    network = "test01.onnx"
-    property = "test01_p1.dnnp"
-    boot_dnnv(network=network, property=property, verifier=verifier)

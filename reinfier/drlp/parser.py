@@ -4,6 +4,7 @@ from .DRLP import DRLP
 from .DNNP import DNNP
 from .lib import *
 from .DRLPTransformer import *
+from typing import List
 import ast
 import astpretty
 import yapf
@@ -90,7 +91,7 @@ def parse_drlp_induction(drlp: DRLP, depth: int, kwargs: dict = {}) -> DNNP:
     return dnnp
 
 
-def parse_drlps(drlp: DRLP, depth: int, to_induct: bool = False, to_filter_unused_variables: bool = True):
+def parse_drlps(drlp: DRLP, depth: int, to_induct: bool = False, to_filter_unused_variables: bool = True) -> List[DNNP]:
     ''' Parse DRLP VPQ'''
     filename, drlp = read_drlp(drlp)
     drlp_v, drlp_pq = split_drlp_vpq(drlp)
@@ -116,12 +117,12 @@ def parse_drlps(drlp: DRLP, depth: int, to_induct: bool = False, to_filter_unuse
     return dnnps
 
 
-def parse_drlps_induction(drlp: str, depth: int, to_filter_unused_variables: bool = True):
+def parse_drlps_induction(drlp: str, depth: int, to_filter_unused_variables: bool = True) -> List[DNNP]:
     ''' Parse DRLP VPQ for k-induction'''
     return parse_drlps(drlp, depth, True, to_filter_unused_variables)
 
 
-def parse_drlps_v(drlp: DRLP, to_filter_unused_variables: bool = True):
+def parse_drlps_v(drlp: DRLP, to_filter_unused_variables: bool = True) -> List[DRLP]:
     ''' Parse DRLP V'''
     kwargss = get_product(get_variables(drlp))
     filename, drlp = read_drlp(drlp)
@@ -223,10 +224,10 @@ def parse_constaint_to_code(drlp: DRLP) -> str:
             name=IS_VIOLATED_ID,
             args=ast.arguments(
                 args=[
-                    ast.arg(arg=DRLPTransformer.INPUT_ID,annotation=None),
-                    ast.arg(arg=DRLPTransformer.OUTPUT_ID,annotation=None),
+                    ast.arg(arg=DRLPTransformer.INPUT_ID, annotation=None),
+                    ast.arg(arg=DRLPTransformer.OUTPUT_ID, annotation=None),
                 ],
-                defaults=[],vararg=None,kwarg=None
+                defaults=[], vararg=None, kwarg=None
             ),
             body=[
                 ast.Assign(
@@ -254,16 +255,12 @@ def parse_pq(drlp: DRLP, depth: int, kwargs: dict = {}, to_induct: bool = False)
         return parse_drlp(drlp, depth, kwargs)
 
 
-def parse_vpq(drlp: DRLP, depth: int, kwargs: dict = {}, to_induct: bool = False, to_filter_unused_variables: bool = True) -> DNNP:
+def parse_vpq(drlp: DRLP, depth: int, kwargs: dict = {}, to_induct: bool = False, to_filter_unused_variables: bool = True) -> List[DNNP]:
     '''API to parse DRLP_VPQ part'''
     return parse_drlps(drlp, depth, to_induct, to_filter_unused_variables)
 
 
-def parse_v(drlp: DRLP, to_filter_unused_variables: bool = True):
+def parse_v(drlp: DRLP, to_filter_unused_variables: bool = True) -> List[DRLP]:
     '''API to parse DRLP_V part'''
     return parse_drlps_v(drlp, to_filter_unused_variables)
 
-
-if __name__ == "__main__":
-    parse_drlp(src, 3)
-    # parse_drlp_induction(src, 3)

@@ -33,7 +33,7 @@ def diag_copy(matrix: np.ndarray, k: int):
     return matrix_new
 
 
-def unroll_nn(network: NN, k: int, branchable=False):
+def unroll_nn(network: NN, k: int, branchable=False) -> NN:
     network = NN(network)
     model = network.obj
     path = network.path
@@ -265,7 +265,3 @@ def unroll_nn(network: NN, k: int, branchable=False):
         [[1.0] * graph_input_length * k], dtype=np.float32))
 
     return NN(path)
-
-
-if __name__ == "__main__":
-    unroll_nn("test01.onnx", 3)

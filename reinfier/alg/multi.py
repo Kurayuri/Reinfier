@@ -5,6 +5,7 @@ from .. import CONSTANT
 from ..nn.NN import NN
 from ..drlp.DRLP import DRLP
 from .single import *
+from .lib import *
 from typing import Tuple, List
 
 
@@ -46,31 +47,6 @@ class Variable:
         return None
 
 
-def get_coordinate(dims, id):
-    coordinate = []
-    for dim in reversed(dims):
-        coordinate.append(id % dim)
-        id //= dim
-    return list(reversed(coordinate))
-
-
-def get_id(dims, coordinate):
-    id = 0
-    base = 1
-    for i in range(len(dims) - 1, -1, -1):
-        id += (base * coordinate[i])
-        base *= dims[i]
-    return id
-
-
-def get_dims(variables):
-    dims = []
-    for k, v in variables.items():
-        if drlp.parser.is_iterable_variable(k):
-            dims.append(len(v))
-    return dims
-
-
 def verify_linear(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1) -> List[Tuple[DRLP, int, bool]]:
     drlps = drlp.parse_drlps_v(property)
 
@@ -84,32 +60,41 @@ def verify_linear(network: NN, property: DRLP, verifier: str = None, k_max: int 
         util.log_prompt(3)
     return ans
 
-
 def search_boundary(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1, kwargs: dict = {}, accuracy: float = 1e-2) -> List[Tuple[DRLP, int, bool]]:
-    variable, boundary = kwargs.items()[0]
-    top = boundary[1]
-    bottom = boundary[0]
-    value = top
-    drlp_ = drlp.editor.overwrite(property, f"{variable}={value}")
-    k, result_top = verify(network, drlp_, verifier=verifier, k_max=k_max, k_min=k_min)
-    value = bottom
-    drlp_ = drlp.editor.overwrite(property, f"{variable}={value}")
-    k, result_bottom = verify(network, drlp_, verifier=verifier, k_max=k_max, k_min=k_min)
+    variable, boundary = list(kwargs.items())[0]
+    lower = boundary[0]
+    upper = boundary[1]
+    property = property.obj
 
-    while top - bottom > accuracy:
-        value = (top + bottom) / 2
-        drlp_ = drlp.editor.overwrite(property, f"{variable}={value}")
+    util.log_prompt(3)
+    util.log("########## Init ##########\n", level=CONSTANT.WARNING)
+
+    value = upper
+    drlp_ = DRLP(drlp.editor.overwrite(property, f"{variable}={value}"))
+    drlp_ = drlp.parse_v(drlp_)[0]
+    k, result_upper = verify(network, drlp_, verifier=verifier, k_max=k_max, k_min=k_min)
+
+    value = lower
+    drlp_ = DRLP(drlp.editor.overwrite(property, f"{variable}={value}"))
+    drlp_ = drlp.parse_v(drlp_)[0]
+    k, result_lower = verify(network, drlp_, verifier=verifier, k_max=k_max, k_min=k_min)
+
+    util.log(f"## Result:\nUpper@{upper}\t: {result_upper}\nLower @{lower}\t: {result_lower}\n", level=CONSTANT.WARNING)
+    while upper - lower > accuracy:
+        value = (upper + lower) / 2
+        drlp_ = DRLP(drlp.editor.overwrite(property, f"{variable}={value}"))
+        drlp_ = drlp.parse_v(drlp_)[0]
         k, result = verify(network, drlp_, verifier=verifier, k_max=k_max, k_min=k_min)
-        if result == result_bottom:
-            bottom = value
-        elif result == result_top:
-            top = value
+
+        if result == result_lower:
+            lower = value
+        elif result == result_upper:
+            upper = value
+
+        util.log_prompt(3)
+        util.log("########## Step ##########\n", level=CONSTANT.WARNING)
+        util.log(f"## Result:\nMid @ {value}\t: {result}\n", level=CONSTANT.WARNING)
     return value
-
-
-def continue_verify(result):  # TODO: Check from Variable type
-    return result == True
-
 
 def verify_cubic(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1) -> List[Tuple[DRLP, int, bool]]:
     drlps = drlp.parse_drlps_v(property)

@@ -77,7 +77,3 @@ def select_verifier(networks, properties, verifiers: list = None, network_alias:
 
     return time_sum_min_verifier
 
-
-if __name__ == "__main__":
-    verifier = select_verifier("test01.onnx", "test01_p1.drlp")
-    print(verifier)

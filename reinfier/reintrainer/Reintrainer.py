@@ -88,12 +88,12 @@ class Reintrainer:
         if isinstance(self.train_api, Callable):
             self.train_api(kwargs)
         elif isinstance(self.train_api, str):
-            cmd = self.train_api +" " \
+            cmd = self.train_api + " " \
                 f"--next_model_path {self.next_model_path} " \
                 f"--total_timestep  {kwargs['total_timestep']} " \
                 f"--reward_api      {self.reward_api} " \
                 ""
-                
+
             if self.curr_model_path:
                 cmd += f"--curr_model_path {self.curr_model_path} "
 
@@ -126,7 +126,7 @@ class Reintrainer:
         try:
             os.makedirs(path, exist_ok=True)
         except Exception as e:
-            print(e)
+            util.log(e, level=CONSTANT.ERROR)
         return path
 
     def reward(self, x, y, reward: float):

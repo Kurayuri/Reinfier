@@ -70,7 +70,3 @@ def verify(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k
     else:
         return bmc(network, property, verifier=verifier, k_max=k_max, k_min=k_min)
 
-
-if __name__ == "__main__":
-    final_k, ans = k_induction("test01.onnx", "test01_p1.drlp", 5, "marabou")
-    print('''%s%s Property is %s with k=%d %s''' % ('\n' * 5, "*" * 10, ans, final_k, "*" * 10))
