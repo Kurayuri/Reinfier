@@ -11,6 +11,8 @@ import os
 import pandas as pd
 import glob
 import re
+import ast
+import astor
 
 
 def choose_curriculum():
@@ -21,6 +23,10 @@ class Reintrainer:
     '''
     Reintrainer: Property Training Framework for Reinforcement Learning
     '''
+
+    REWARD_FUNC_ID = "reward"
+    REWARD_FUNC_PARA_REWARD_ID = "rwd"
+    REWARD_FUNC_PARA_VIOLATED_ID = "violated"
 
     def __init__(self, properties: List[DRLP], curriculum_chosen_func: Callable,
                  init_model_path: str, verifier: str,
@@ -73,24 +79,66 @@ class Reintrainer:
             self.next_model_path = self.get_next_model_path(rnd)
 
             self.generate_constant()
+            self.generate_reward()
 
             self.call_train_api(total_timestep=step)
 
             self.curr_model_path = self.next_model_path
             util.log("\n## Current model path: \n%s" % self.curr_model_path, level=CONSTANT.INFO)
 
+
     def generate_constant(self):
         code = self.get_constraint(self.properties[0])
-        with open(f"{self.next_model_path}/reward_api.py", "w") as f:
+        with open(f"{self.next_model_path}/{self.reward_api}", "w") as f:
+            f.write(code)
+        return code
+
+    def generate_reward(self, to_append: bool = True):
+        reward_val = -4.5
+
+        ast_root = ast.parse("")
+        ast_root.body = [ast.FunctionDef(
+            name=self.REWARD_FUNC_ID, decorator_list=[],
+            args=ast.arguments(
+                args=[ast.arg(arg=self.REWARD_FUNC_PARA_VIOLATED_ID, annotation=None),
+                      ast.arg(arg=self.REWARD_FUNC_PARA_REWARD_ID, annotation=None),
+                      ], defaults=[], vararg=None, kwarg=None
+            ),
+            body=[ast.If(
+                test=ast.Name(id=self.REWARD_FUNC_PARA_VIOLATED_ID, ctx=ast.Load()), orelse=[],
+                body=[ast.Assign(
+                    targets=[ast.Name(id=self.REWARD_FUNC_PARA_REWARD_ID, ctx=ast.Store())],
+                    value=ast.Constant(value=reward_val),
+                    type_comment=None,
+                )]),
+                ast.Return(value=ast.Name(id=self.REWARD_FUNC_PARA_REWARD_ID, ctx=ast.Load()))])]
+        code = astor.to_source(ast_root)
+        code = "\n" + code
+#         code = '''
+# def reward(violated,rwd):
+#     if violated:
+#         rwd = %f
+#     return rwd
+#         ''' % (reward_val)
+        mode = "a+"
+        if not to_append:
+            mode = "w"
+        with open(f"{self.next_model_path}/{self.reward_api}", mode) as f:
             f.write(code)
 
     def call_train_api(self, **kwargs):
         if isinstance(self.train_api, Callable):
-            self.train_api(kwargs)
+            kwargs["next_model_path"] = self.next_model_path
+            kwargs["reward_api"] = self.reward_api
+
+            if self.curr_model_path:
+                kwargs["curr_model_path"] = self.curr_model_path
+            self.train_api(**kwargs)
+
         elif isinstance(self.train_api, str):
             cmd = self.train_api + " " \
-                f"--next_model_path {self.next_model_path} " \
                 f"--total_timestep  {kwargs['total_timestep']} " \
+                f"--next_model_path {self.next_model_path} " \
                 f"--reward_api      {self.reward_api} " \
                 ""
 
