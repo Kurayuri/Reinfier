@@ -85,6 +85,7 @@ class Reintrainer:
 
             self.curr_model_path = self.next_model_path
             util.log("\n## Current model path: \n%s" % self.curr_model_path, level=CONSTANT.INFO)
+            break
 
 
     def generate_constant(self):
