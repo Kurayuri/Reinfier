@@ -10,7 +10,7 @@ from .. import util
 def select_verifier(networks, properties, verifiers: list = None, network_alias: str = "N"):
     util.log("## Selecting verifier...", level=CONSTANT.INFO)
     if verifiers is None:
-        if Setting.SelectionFull:
+        if Setting.ToTestAllVerifier:
             verifiers = CONSTANT.VERIFIERS
         else:
             verifiers = CONSTANT.RUNABLE_VERIFIERS

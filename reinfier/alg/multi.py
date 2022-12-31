@@ -48,15 +48,15 @@ class Variable:
 
 
 def verify_linear(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1) -> List[Tuple[DRLP, int, bool]]:
-    drlps = drlp.parse_drlps_v(property)
+    property_pqs = drlp.parse_v(property)
 
     ans = []
-    for drlp_ in drlps:
-        k, result = verify(network, drlp_, verifier=verifier, k_max=k_max, k_min=k_min)
+    for property_pq in property_pqs:
+        k, result = verify(network, property_pq, verifier=verifier, k_max=k_max, k_min=k_min)
 
-        ans.append((drlp_, k, result))
+        ans.append((property_pq, k, result))
 
-        util.log((drlp_, drlp_.kwargs, k, result), level=CONSTANT.INFO)
+        util.log((property_pq, property_pq.kwargs, k, result), level=CONSTANT.INFO)
         util.log_prompt(3)
     return ans
 
@@ -70,21 +70,21 @@ def search_boundary(network: NN, property: DRLP, verifier: str = None, k_max: in
     util.log("########## Init ##########\n", level=CONSTANT.WARNING)
 
     value = upper
-    drlp_ = DRLP(drlp.editor.overwrite(property, f"{variable}={value}"))
-    drlp_ = drlp.parse_v(drlp_)[0]
-    k, result_upper = verify(network, drlp_, verifier=verifier, k_max=k_max, k_min=k_min)
+    property_vpq = DRLP(property).overwrite(f"{variable}={value}")
+    property_pq = drlp.parse_v(property_vpq)[0]
+    k, result_upper = verify(network, property_pq, verifier=verifier, k_max=k_max, k_min=k_min)
 
     value = lower
-    drlp_ = DRLP(drlp.editor.overwrite(property, f"{variable}={value}"))
-    drlp_ = drlp.parse_v(drlp_)[0]
-    k, result_lower = verify(network, drlp_, verifier=verifier, k_max=k_max, k_min=k_min)
+    property_vpq = DRLP(property).overwrite(f"{variable}={value}")
+    property_pq = drlp.parse_v(property_vpq)[0]
+    k, result_lower = verify(network, property_pq, verifier=verifier, k_max=k_max, k_min=k_min)
 
     util.log(f"## Result:\nUpper@{upper}\t: {result_upper}\nLower @{lower}\t: {result_lower}\n", level=CONSTANT.WARNING)
     while upper - lower > accuracy:
         value = (upper + lower) / 2
-        drlp_ = DRLP(drlp.editor.overwrite(property, f"{variable}={value}"))
-        drlp_ = drlp.parse_v(drlp_)[0]
-        k, result = verify(network, drlp_, verifier=verifier, k_max=k_max, k_min=k_min)
+        property_vpq = DRLP(property).overwrite(f"{variable}={value}")
+        property_pq = drlp.parse_v(property_vpq)[0]
+        k, result = verify(network, property_pq, verifier=verifier, k_max=k_max, k_min=k_min)
 
         if result == result_lower:
             lower = value
@@ -97,23 +97,23 @@ def search_boundary(network: NN, property: DRLP, verifier: str = None, k_max: in
     return value
 
 def verify_cubic(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1) -> List[Tuple[DRLP, int, bool]]:
-    drlps = drlp.parse_drlps_v(property)
+    property_pqs = drlp.parse_v(property)
     variables = drlp.parser.get_variables(property)
     dims = get_dims(variables)
 
     ans = []
     i = 0
-    drlps_len = len(drlps)
+    property_pqs_len = len(property_pqs)
 
-    while i < drlps_len:
+    while i < property_pqs_len:
         coordinate = get_coordinate(dims, i)
-        drlp_ = drlps[i]
+        property_pq = property_pqs[i]
 
-        k, result = verify(network, drlp_, verifier=verifier, k_max=k_max, k_min=k_min)
+        k, result = verify(network, property_pq, verifier=verifier, k_max=k_max, k_min=k_min)
 
-        ans.append((drlp_, k, result))
+        ans.append((property_pq, k, result))
 
-        util.log((drlp_, drlp_.kwargs, k, result), level=CONSTANT.INFO)
+        util.log((property_pq, property_pq.kwargs, k, result), level=CONSTANT.INFO)
         util.log_prompt(3)
         if continue_verify(result):
             i += 1

@@ -1,8 +1,8 @@
 from . import CONSTANT
 LogLevel = CONSTANT.INFO
 TmpPath = "tmp"
-BranchableVerifier = [CONSTANT.MARABOU]
-SelectionFull = False
+BranchableVerifiers = [CONSTANT.MARABOU]
+ToTestAllVerifier = False
 
 
 def set_LogLevel(level):
@@ -15,6 +15,6 @@ def set_TmpPath(path):
     TmpPath = path
 
 
-def set_SelectionFull(full_test):
-    global SelectionFull
-    SelectionFull = full_test
+def set_ToTestAllVerifier(to_test_all_verifier):
+    global ToTestAllVerifier
+    ToTestAllVerifier = to_test_all_verifier

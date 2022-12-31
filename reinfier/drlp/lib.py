@@ -20,24 +20,24 @@ dedent_closing_brackets = true
 '''
 
 
-def split_drlp_pq(drlp):
+def split_drlp_pq(drlp_pq):
     try:
-        drlp = re.split("%s[^\n]*\n" % (DRLPTransformer.EXPECTATION_DELIMITER), drlp)
-        if len(drlp) != 2:
+        drlp_pq = re.split("%s[^\n]*\n" % (DRLPTransformer.EXPECTATION_DELIMITER), drlp_pq)
+        if len(drlp_pq) != 2:
             raise Exception
     except Exception:
         raise DRLPParsingError("Invalid DRLP format")
-    return drlp[0], drlp[1]
+    return drlp_pq[0], drlp_pq[1]
 
 
-def split_drlp_vpq(drlp):
+def split_drlp_vpq(drlp_vpq):
     try:
-        drlp = re.split("%s[^\n]*\n" % (DRLPTransformer.PRECONDITION_DELIMITER), drlp)
-        if len(drlp) != 2:
-            drlp.insert(0, "")
+        drlp_vpq = re.split("%s[^\n]*\n" % (DRLPTransformer.PRECONDITION_DELIMITER), drlp_vpq)
+        if len(drlp_vpq) != 2:
+            drlp_vpq.insert(0, "")
     except Exception as e:
         raise DRLPParsingError("Invalid DRLP format")
-    return drlp[0], drlp[1]
+    return drlp_vpq[0], drlp_vpq[1]
 
 
 def format_dnnp(code: str):
@@ -131,11 +131,11 @@ def make_drlp(ast_root_p, ast_root_q):
     return drlp_pqi
 
 
-def read_drlp(drlp: DRLP):
-    path = drlp.path
-    drlp = drlp.obj
+def read_drlp(property: DRLP):
+    path = property.path
+    drlp_vpq = property.obj
     filename = util.lib.get_filename_from_path(path)
-    return filename, drlp
+    return filename, drlp_vpq
 
 
 def transform(transformer: DRLPTransformer, ast_roots):
@@ -170,10 +170,10 @@ def transform_pipeline(ast_roots, depth: int, kwargs: dict, input_size: int = No
     return ast_roots, input_size, output_size
 
 
-def exec_drlp_v(drlp):
-    exec(drlp)
-    if isinstance(drlp, str):
-        del drlp
+def exec_drlp_v(drlp_v):
+    exec(drlp_v)
+    if isinstance(drlp_v, str):
+        del drlp_v
     return locals()
 
 
@@ -213,9 +213,9 @@ def get_variables_pq(drlp_pq):
     return variables
 
 
-def get_variables(drlp: DRLP, to_filter_unused_variables: bool = True):
-    drlp = drlp.obj
-    drlp_v, drlp_pq = lib.split_drlp_vpq(drlp)
+def get_variables(property: DRLP, to_filter_unused_variables: bool = True):
+    drlp_vpq = property.obj
+    drlp_v, drlp_pq = lib.split_drlp_vpq(drlp_vpq)
     drlp_p, drlp_q = lib.split_drlp_pq(drlp_pq)
 
     varibles_v = exec_drlp_v(drlp_v)

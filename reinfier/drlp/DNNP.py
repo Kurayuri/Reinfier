@@ -9,7 +9,7 @@ class DNNP:
                     self.obj = f.read()
                 self.path = arg
             except Exception:
-                self.path = "tmp.drlp"
+                self.path = "tmp.dnnp"
                 self.obj = arg
 
         else:

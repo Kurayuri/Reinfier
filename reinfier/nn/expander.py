@@ -13,16 +13,16 @@ def convert_name(name: str, step: int):
     return name + "@" + str(step)
 
 
-def diag_copy(matrix: np.ndarray, k: int):
+def diag_copy(matrix: np.ndarray, depth: int):
     if matrix.ndim == 1:
-        matrix_new = np.zeros((matrix.shape[0] * k), matrix.dtype)
-        for i in range(k):
+        matrix_new = np.zeros((matrix.shape[0] * depth), matrix.dtype)
+        for i in range(depth):
             row = i * matrix.shape[0]
             for j in range(matrix.shape[0]):
                 matrix_new[row + j] = matrix[j]
     elif matrix.ndim == 2:
-        matrix_new = np.zeros((matrix.shape[0] * k, matrix.shape[1] * k), matrix.dtype)
-        for i in range(k):
+        matrix_new = np.zeros((matrix.shape[0] * depth, matrix.shape[1] * depth), matrix.dtype)
+        for i in range(depth):
             row = i * matrix.shape[0]
             col = i * matrix.shape[1]
             for j in range(matrix.shape[0]):
@@ -33,7 +33,7 @@ def diag_copy(matrix: np.ndarray, k: int):
     return matrix_new
 
 
-def unroll_nn(network: NN, k: int, branchable=False) -> NN:
+def unroll_nn(network: NN, depth: int, branchable=False) -> NN:
     network = NN(network)
     model = network.obj
     path = network.path
@@ -59,7 +59,7 @@ def unroll_nn(network: NN, k: int, branchable=False) -> NN:
     graph_output_length = int(
         graph_output.type.tensor_type.shape.dim[1].dim_value)
 
-    if k > 1:
+    if depth > 1:
         graph_input.name = "Input"
         graph_output.name = "Output"
         initializer = graph.initializer
@@ -76,9 +76,9 @@ def unroll_nn(network: NN, k: int, branchable=False) -> NN:
         step = 0
 
         graph_input.type.tensor_type.shape.dim[0].dim_value = 1
-        graph_input.type.tensor_type.shape.dim[1].dim_value = graph_input_length * k
+        graph_input.type.tensor_type.shape.dim[1].dim_value = graph_input_length * depth
         graph_output.type.tensor_type.shape.dim[0].dim_value = 1
-        graph_output.type.tensor_type.shape.dim[1].dim_value = graph_output_length * k
+        graph_output.type.tensor_type.shape.dim[1].dim_value = graph_output_length * depth
         # %% No branch Expanding
         if not branchable:
             initializer_dict = {x.name: (idx, onnx.numpy_helper.to_array(x)) for idx, x in enumerate(initializer)}
@@ -87,7 +87,7 @@ def unroll_nn(network: NN, k: int, branchable=False) -> NN:
                     if name in initializer_dict.keys():
                         input_name = name
                         idx, matrix = initializer_dict[input_name]
-                        matrix_new = diag_copy(matrix, k)
+                        matrix_new = diag_copy(matrix, depth)
                         tensor = onnx.numpy_helper.from_array(matrix_new, input_name)
                         model.graph.initializer[idx].CopyFrom(tensor)
         # %% Branch Expanding
@@ -96,30 +96,30 @@ def unroll_nn(network: NN, k: int, branchable=False) -> NN:
                 graph_node.remove(x)
 
             # Add Concat Zero Matrix
-            mat = np.zeros((graph_output_length, k * graph_output_length))
+            mat = np.zeros((graph_output_length, depth * graph_output_length))
             concat_zero_matrix_name = "concat_zero_matrix"
             tensor = onnx.helper.make_tensor(
                 name=concat_zero_matrix_name,
                 data_type=onnx.TensorProto.FLOAT,
-                dims=(graph_output_length, k * graph_output_length),
+                dims=(graph_output_length, depth * graph_output_length),
                 vals=mat.flatten()
             )
             initializer.append(tensor)
 
             # concat_name="Concat"
             # concat_names=[]
-            for step in range(k):
+            for step in range(depth):
                 # Add Split node
                 start_index = step * graph_input_length
                 indices_name = convert_name("SplitIndeices", step)
-                mat = np.zeros((k * graph_input_length, graph_input_length))
+                mat = np.zeros((depth * graph_input_length, graph_input_length))
                 for i in range(graph_input_length):
                     mat[start_index + i, i] = 1
 
                 tensor = onnx.helper.make_tensor(
                     name=indices_name,
                     data_type=onnx.TensorProto.FLOAT,
-                    dims=(k * graph_input_length, graph_input_length),
+                    dims=(depth * graph_input_length, graph_input_length),
                     vals=mat.flatten()
                 )
                 initializer.append(tensor)
@@ -188,14 +188,14 @@ def unroll_nn(network: NN, k: int, branchable=False) -> NN:
                 # Add Merge node
                 start_index = step * graph_output_length
                 indices_name = convert_name("MergeIndeices", step)
-                mat = np.zeros((graph_output_length, k * graph_output_length))
+                mat = np.zeros((graph_output_length, depth * graph_output_length))
                 for i in range(graph_output_length):
                     mat[i, start_index + i] = 1
 
                 tensor = onnx.helper.make_tensor(
                     name=indices_name,
                     data_type=onnx.TensorProto.FLOAT,
-                    dims=(graph_output_length, k * graph_output_length),
+                    dims=(graph_output_length, depth * graph_output_length),
                     vals=mat.flatten()
                 )
                 initializer.append(tensor)
@@ -214,7 +214,7 @@ def unroll_nn(network: NN, k: int, branchable=False) -> NN:
                 prev_concat_name = convert_name("Concat", step - 1)
                 if step == 0:
                     prev_concat_name = concat_zero_matrix_name
-                if step == k - 1:
+                if step == depth - 1:
                     concat_name = graph_output.name
                 # print(prev_concat_name, concat_name, merge_name)
                 concat_node = onnx.helper.make_node(
@@ -255,13 +255,13 @@ def unroll_nn(network: NN, k: int, branchable=False) -> NN:
     else:
         util.log('Expanded model is valid!', level=CONSTANT.INFO)
 
-    path = util.lib.get_savepath(filename, k, "onnx")
+    path = util.lib.get_savepath(filename, depth, "onnx")
     util.log(path)
     onnx.save(model, path)
 
     onnx_runner.run_onnx(origin_path, np.array(
         [[1.0] * graph_input_length], dtype=np.float32))
     onnx_runner.run_onnx(path, np.array(
-        [[1.0] * graph_input_length * k], dtype=np.float32))
+        [[1.0] * graph_input_length * depth], dtype=np.float32))
 
     return NN(path)

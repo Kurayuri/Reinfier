@@ -31,14 +31,14 @@ y >= [[0]]*k
 '''
 
 
-def parse_drlp(drlp: DRLP, depth: int, kwgs: dict = {}) -> DNNP:
+def parse_drlp(property: DRLP, depth: int, kwgs: dict = {}) -> DNNP:
     '''Parse DRLP PQ'''
-    if isinstance(drlp, DNNP):
-        return drlp
+    if isinstance(property, DNNP):
+        return property
 
-    filename, drlp = read_drlp(drlp)
-    drlp_v, drlp = split_drlp_vpq(drlp)
-    drlp_p, drlp_q = split_drlp_pq(drlp)
+    filename, drlp_vpq = read_drlp(property)
+    drlp_v, drlp_pq = split_drlp_vpq(drlp_vpq)
+    drlp_p, drlp_q = split_drlp_pq(drlp_pq)
 
     ast_root_p = ast.parse(drlp_p)
     ast_root_q = ast.parse(drlp_q)
@@ -53,14 +53,14 @@ def parse_drlp(drlp: DRLP, depth: int, kwgs: dict = {}) -> DNNP:
     return dnnp
 
 
-def parse_drlp_induction(drlp: DRLP, depth: int, kwargs: dict = {}) -> DNNP:
+def parse_drlp_induction(property: DRLP, depth: int, kwargs: dict = {}) -> DNNP:
     '''Parse DRLP PQ for k-induction'''
-    if isinstance(drlp, DNNP):
-        return drlp
+    if isinstance(property, DNNP):
+        return property
 
-    filename, drlp = read_drlp(drlp)
-    drlp_v, drlp = split_drlp_vpq(drlp)
-    drlp_p, drlp_q = split_drlp_pq(drlp)
+    filename, drlp_vpq = read_drlp(property)
+    drlp_v, drlp_pq = split_drlp_vpq(drlp_vpq)
+    drlp_p, drlp_q = split_drlp_pq(drlp_pq)
 
     # k+1 Precondition
     depth += 1
@@ -91,10 +91,10 @@ def parse_drlp_induction(drlp: DRLP, depth: int, kwargs: dict = {}) -> DNNP:
     return dnnp
 
 
-def parse_drlps(drlp: DRLP, depth: int, to_induct: bool = False, to_filter_unused_variables: bool = True) -> List[DNNP]:
+def parse_drlps(property: DRLP, depth: int, to_induct: bool = False, to_filter_unused_variables: bool = True) -> List[DNNP]:
     ''' Parse DRLP VPQ'''
-    filename, drlp = read_drlp(drlp)
-    drlp_v, drlp_pq = split_drlp_vpq(drlp)
+    filename, drlp_vpq = read_drlp(property)
+    drlp_v, drlp_pq = split_drlp_vpq(drlp_vpq)
 
     varibles_v = exec_drlp_v(drlp_v)
     variables_pq = get_variables_pq(drlp_pq)
@@ -117,19 +117,19 @@ def parse_drlps(drlp: DRLP, depth: int, to_induct: bool = False, to_filter_unuse
     return dnnps
 
 
-def parse_drlps_induction(drlp: str, depth: int, to_filter_unused_variables: bool = True) -> List[DNNP]:
+def parse_drlps_induction(property: str, depth: int, to_filter_unused_variables: bool = True) -> List[DNNP]:
     ''' Parse DRLP VPQ for k-induction'''
-    return parse_drlps(drlp, depth, True, to_filter_unused_variables)
+    return parse_drlps(property, depth, True, to_filter_unused_variables)
 
 
-def parse_drlps_v(drlp: DRLP, to_filter_unused_variables: bool = True) -> List[DRLP]:
+def parse_drlps_v(property: DRLP, to_filter_unused_variables: bool = True) -> List[DRLP]:
     ''' Parse DRLP V'''
-    kwargss = get_product(get_variables(drlp))
-    filename, drlp = read_drlp(drlp)
-    drlp_v, drlp_pq = split_drlp_vpq(drlp)
+    kwargss = get_product(get_variables(property))
+    filename, drlp_vpq = read_drlp(property)
+    drlp_v, drlp_pq = split_drlp_vpq(drlp_vpq)
     drlp_p, drlp_q = split_drlp_pq(drlp_pq)
 
-    drlps = []
+    property_pqs = []
 
     for kwargs in kwargss:
         ast_root_p = ast.parse(drlp_p)
@@ -138,17 +138,17 @@ def parse_drlps_v(drlp: DRLP, to_filter_unused_variables: bool = True) -> List[D
 
         drlp_pqi = make_drlp(ast_root_p, ast_root_q)
         util.log("## DRLP:\n", drlp_pqi)
-        drlps.append(DRLP(drlp_pqi, kwargs))
+        property_pqs.append(DRLP(drlp_pqi, kwargs))
 
-    return drlps
+    return property_pqs
 
 
-def parse_drlp_get_constraint(drlp: DRLP) -> DRLP:
-    if isinstance(drlp, DNNP):
-        return drlp
-    filename, drlp = read_drlp(drlp)
-    drlp_v, drlp = split_drlp_vpq(drlp)
-    drlp_p, drlp_q = split_drlp_pq(drlp)
+def parse_drlp_get_constraint(property: DRLP) -> DRLP:
+    if isinstance(property, DNNP):
+        return property
+    filename, drlp_vpq = read_drlp(property)
+    drlp_v, drlp_pq = split_drlp_vpq(drlp_vpq)
+    drlp_p, drlp_q = split_drlp_pq(drlp_pq)
 
     ast_root_p = ast.parse(drlp_p)
     ast_root_q = ast.parse(drlp_q)
@@ -164,10 +164,10 @@ def parse_drlp_get_constraint(drlp: DRLP) -> DRLP:
     return DRLP(drlp_pqi)
 
 
-def parse_constaint_to_code(drlp: DRLP) -> str:
-    filename, drlp = read_drlp(drlp)
-    drlp_v, drlp = split_drlp_vpq(drlp)
-    drlp_p, drlp_q = split_drlp_pq(drlp)
+def parse_constaint_to_code(property: DRLP) -> str:
+    filename, drlp_vpq = read_drlp(property)
+    drlp_v, drlp_pq = split_drlp_vpq(drlp_vpq)
+    drlp_p, drlp_q = split_drlp_pq(drlp_pq)
 
     ast_root_p = ast.parse(drlp_p)
     ast_root_q = ast.parse(drlp_q)
@@ -247,20 +247,19 @@ def parse_constaint_to_code(drlp: DRLP) -> str:
     return py_code
 
 
-def parse_pq(drlp: DRLP, depth: int, kwargs: dict = {}, to_induct: bool = False) -> DNNP:
+def parse_pq(property: DRLP, depth: int, kwargs: dict = {}, to_induct: bool = False) -> DNNP:
     '''API to parse DRLP_PQ part'''
     if to_induct:
-        return parse_drlp_induction(drlp, depth, kwargs)
+        return parse_drlp_induction(property, depth, kwargs)
     else:
-        return parse_drlp(drlp, depth, kwargs)
+        return parse_drlp(property, depth, kwargs)
 
 
-def parse_vpq(drlp: DRLP, depth: int, kwargs: dict = {}, to_induct: bool = False, to_filter_unused_variables: bool = True) -> List[DNNP]:
+def parse_vpq(property: DRLP, depth: int, kwargs: dict = {}, to_induct: bool = False, to_filter_unused_variables: bool = True) -> List[DNNP]:
     '''API to parse DRLP_VPQ part'''
-    return parse_drlps(drlp, depth, to_induct, to_filter_unused_variables)
+    return parse_drlps(property, depth, to_induct, to_filter_unused_variables)
 
 
-def parse_v(drlp: DRLP, to_filter_unused_variables: bool = True) -> List[DRLP]:
+def parse_v(property: DRLP, to_filter_unused_variables: bool = True) -> List[DRLP]:
     '''API to parse DRLP_V part'''
-    return parse_drlps_v(drlp, to_filter_unused_variables)
-
+    return parse_drlps_v(property, to_filter_unused_variables)
