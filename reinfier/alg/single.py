@@ -1,13 +1,10 @@
-from . import lib
-from . import selector
-from .. import dnnv
-from .. import util
-from .. import nn
-from .. import drlp
-from .. import CONSTANT
-from ..nn.NN import NN
 from ..drlp.DRLP import DRLP
-from ..drlp.DNNP import DNNP
+from ..nn.NN import NN
+from ..import nn
+from ..import dnnv
+from ..import drlp
+from .import lib
+from .import selector
 from typing import Tuple
 
 
@@ -69,4 +66,3 @@ def verify(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k
         return k_induction(network, property, verifier=verifier, k_max=k_max, k_min=k_min)
     else:
         return bmc(network, property, verifier=verifier, k_max=k_max, k_min=k_min)
-

@@ -1,14 +1,12 @@
-from .. import util
-from .. import CONSTANT
+from ..import util
+from .DRLPTransformer import *
 from .DRLP import DRLP
 from .DNNP import DNNP
 from .lib import *
-from .DRLPTransformer import *
 from typing import List
-import ast
 import astpretty
-import yapf
 import astor
+import ast
 VIOLATED_ID = "violated"
 IS_VIOLATED_ID = "is_violated"
 

@@ -1,9 +1,8 @@
-
-from .. import util
-from .. import drlp
-from .. import CONSTANT
-from ..nn.NN import NN
 from ..drlp.DRLP import DRLP
+from ..nn.NN import NN
+from ..import util
+from ..import drlp
+from ..import CONSTANT
 from .single import *
 from .lib import *
 from typing import Tuple, List
@@ -60,6 +59,7 @@ def verify_linear(network: NN, property: DRLP, verifier: str = None, k_max: int 
         util.log_prompt(3)
     return ans
 
+
 def search_boundary(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1, kwargs: dict = {}, accuracy: float = 1e-2) -> List[Tuple[DRLP, int, bool]]:
     variable, boundary = list(kwargs.items())[0]
     lower = boundary[0]
@@ -95,6 +95,7 @@ def search_boundary(network: NN, property: DRLP, verifier: str = None, k_max: in
         util.log("########## Step ##########\n", level=CONSTANT.WARNING)
         util.log(f"## Result:\nMid @ {value}\t: {result}\n", level=CONSTANT.WARNING)
     return value
+
 
 def verify_cubic(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1) -> List[Tuple[DRLP, int, bool]]:
     property_pqs = drlp.parse_v(property)

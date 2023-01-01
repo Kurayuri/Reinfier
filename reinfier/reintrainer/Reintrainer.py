@@ -1,18 +1,18 @@
 from ..drlp.DRLP import DRLP
 from ..nn.NN import NN
-from typing import Callable, Dict, List, Set, Union
-from bayes_opt import BayesianOptimization
 from ..import alg
 from ..import drlp
 from ..import util
-from .. import CONSTANT
-import subprocess
-import os
+from ..import CONSTANT
+from typing import Callable, Dict, List, Set, Union
+from bayes_opt import BayesianOptimization
 import pandas as pd
-import glob
-import re
-import ast
+import subprocess
 import astor
+import glob
+import ast
+import os
+import re
 
 
 def choose_curriculum():

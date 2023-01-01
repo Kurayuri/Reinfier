@@ -1,17 +1,14 @@
-import contextlib
-import os
+from ..drlp.DNNP import DNNP
+from ..nn.NN import NN
+from ..import CONSTANT
+from ..import Setting
+from ..import util
+from ..import nn
+from typing import Tuple
 import numpy as np
 import subprocess
-from ..nn.NN import NN
-from ..drlp.DNNP import DNNP
-from .. import nn
-from .. import util
-from .. import CONSTANT
-from .. import Setting
-from typing import Tuple
+import os
 
-import re
-import sys
 # from dnnv.__main__ import _main as dnnv_main
 
 

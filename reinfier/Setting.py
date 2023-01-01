@@ -1,4 +1,4 @@
-from . import CONSTANT
+from .import CONSTANT
 LogLevel = CONSTANT.INFO
 TmpPath = "tmp"
 BranchableVerifiers = [CONSTANT.MARABOU]

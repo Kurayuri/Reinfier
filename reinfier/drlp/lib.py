@@ -1,16 +1,16 @@
-from .. import util
-from .. import CONSTANT
+from ..import CONSTANT
+from ..import util
 from .DRLPTransformer import *
 from .DRLP import DRLP
 from .DNNP import DNNP
-from . import lib
-import re
-import ast
+from .import lib
 import astpretty
 import itertools
-import yapf
-import os
 import astor
+import yapf
+import ast
+import re
+import os
 
 yamf_style = '''
 [style]

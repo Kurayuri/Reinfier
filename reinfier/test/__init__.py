@@ -1,7 +1,6 @@
 """Reinfier.Test Sample"""
 from ..nn.NN import NN
 from ..drlp.DRLP import DRLP
-import os
 
 
 def get_sample_path():

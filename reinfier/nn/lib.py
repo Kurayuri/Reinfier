@@ -1,4 +1,4 @@
-from .. import Setting
+from ..import Setting
 
 
 def is_branchable(verifier):

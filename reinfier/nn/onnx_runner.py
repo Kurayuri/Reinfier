@@ -1,8 +1,8 @@
+from ..import CONSTANT
+from ..import util
+from typing import Union
 import onnxruntime
 import numpy as np
-from .. import CONSTANT
-from .. import util
-from typing import Union
 
 # onnxruntime.set_default_logger_severity(0)
 

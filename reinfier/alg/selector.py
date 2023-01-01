@@ -1,10 +1,10 @@
+from ..import CONSTANT
+from ..import Setting
+from ..import dnnv
+from ..import drlp
+from ..import util
+from ..import nn
 import json
-from .. import dnnv
-from .. import nn
-from .. import drlp
-from .. import CONSTANT
-from .. import Setting
-from .. import util
 
 
 def select_verifier(networks, properties, verifiers: list = None, network_alias: str = "N"):

@@ -1,12 +1,10 @@
-from .. import nn
-from .. import util
-from .. import CONSTANT
-from . import onnx_runner
 from ..nn.NN import NN
+from ..import CONSTANT
+from ..import util
+from .import onnx_runner
 import numpy as np
 import onnx
 import copy
-import onnx.numpy_helper
 
 
 def convert_name(name: str, step: int):

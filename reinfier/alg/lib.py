@@ -1,9 +1,11 @@
-from .. import drlp
+from ..import drlp
+
 
 def log_call(*args):
     with open("log.txt", 'a+') as f:
         args = [str(arg) for arg in args]
         f.write(" ".join(args) + "\n")
+
 
 def get_coordinate(dims, id):
     coordinate = []
@@ -28,6 +30,7 @@ def get_dims(variables):
         if drlp.parser.is_iterable_variable(k):
             dims.append(len(v))
     return dims
+
 
 def continue_verify(result):  # TODO: Check from Variable type
     return result == True
