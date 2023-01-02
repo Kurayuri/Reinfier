@@ -8,6 +8,7 @@ from typing import Callable, Dict, List, Set, Union
 from bayes_opt import BayesianOptimization
 import pandas as pd
 import subprocess
+import inspect
 import astor
 import glob
 import ast
@@ -27,11 +28,12 @@ class Reintrainer:
     REWARD_FUNC_ID = "reward"
     REWARD_FUNC_PARA_REWARD_ID = "rwd"
     REWARD_FUNC_PARA_VIOLATED_ID = "violated"
+    REWARD_API_FILENAME = "reward_api.py"
 
     def __init__(self, properties: List[DRLP], curriculum_chosen_func: Callable,
-                 init_model_path: str, verifier: str,
-                 train_api: Union[Callable, str], test_api: Union[Callable, str],
-                 save_path: str, onnx_filename: str = "model.onnx"
+                 init_model_path: str, verifier: str, save_path: str,
+                 train_api: Union[Callable, str], test_api: Union[Callable, str], reward_api: str = None,
+                 onnx_filename: str = "model.onnx"
                  ):
         self.properties = properties
         self.properties_apply = []
@@ -50,7 +52,17 @@ class Reintrainer:
 
         self.save_path = save_path
         self.model_select = 'latest'
-        self.reward_api = "reward_api.py"
+
+        if reward_api:
+            if reward_api == "Callable":
+                self.reward_api = self.RewardAPI
+            elif reward_api == "str":
+                self.reward_api = self.REWARD_API_FILENAME
+        else:
+            if isinstance(self.train_api, Callable):
+                self.reward_api = self.RewardAPI
+            elif isinstance(self.train_api, str):
+                self.reward_api = self.REWARD_API_FILENAME
 
     def train(self, round: int, step: int):
         for rnd in range(round):
@@ -95,37 +107,60 @@ class Reintrainer:
         return code
 
     def generate_reward(self, to_append: bool = True):
-        reward_val = -4.5
 
-        ast_root = ast.parse("")
-        ast_root.body = [ast.FunctionDef(
-            name=self.REWARD_FUNC_ID, decorator_list=[],
-            args=ast.arguments(
-                args=[ast.arg(arg=self.REWARD_FUNC_PARA_VIOLATED_ID, annotation=None),
-                      ast.arg(arg=self.REWARD_FUNC_PARA_REWARD_ID, annotation=None),
-                      ], defaults=[], vararg=None, kwarg=None
-            ),
-            body=[ast.If(
-                test=ast.Name(id=self.REWARD_FUNC_PARA_VIOLATED_ID, ctx=ast.Load()), orelse=[],
-                body=[ast.Assign(
-                    targets=[ast.Name(id=self.REWARD_FUNC_PARA_REWARD_ID, ctx=ast.Store())],
-                    value=ast.Constant(value=reward_val),
-                    type_comment=None,
-                )]),
-                ast.Return(value=ast.Name(id=self.REWARD_FUNC_PARA_REWARD_ID, ctx=ast.Load()))])]
+        # %% Generate reward from AST
+        # reward_val = -4.5
+        # ast_root = ast.parse("")
+        # ast_root.body = [ast.FunctionDef(
+        #     name=self.REWARD_FUNC_ID, decorator_list=[],
+        #     args=ast.arguments(
+        #         args=[ast.arg(arg=self.REWARD_FUNC_PARA_VIOLATED_ID, annotation=None),
+        #               ast.arg(arg=self.REWARD_FUNC_PARA_REWARD_ID, annotation=None),
+        #               ], defaults=[], vararg=None, kwarg=None
+        #     ),
+        #     body=[ast.If(
+        #         test=ast.Name(id=self.REWARD_FUNC_PARA_VIOLATED_ID, ctx=ast.Load()), orelse=[],
+        #         body=[ast.Assign(
+        #             targets=[ast.Name(id=self.REWARD_FUNC_PARA_REWARD_ID, ctx=ast.Store())],
+        #             value=ast.Constant(value=reward_val),
+        #             type_comment=None,
+        #         )]),
+        #         ast.Return(value=ast.Name(id=self.REWARD_FUNC_PARA_REWARD_ID, ctx=ast.Load()))])]
+        # code = astor.to_source(ast_root)
+
+        # %% Generate reward from reward_func
+
+        code = inspect.getsource(Reintrainer.reward)
+        indent = re.search("def", code.split("\n", 1)[0]).span()[0]
+        code = "\n".join([line[indent:] for line in code.split("\n")])
+
+        ast_root = ast.parse(code)
+        ast_root.body[0].args.args = ast_root.body[0].args.args[1:]
         code = astor.to_source(ast_root)
+
         code = "\n" + code
-#         code = '''
-# def reward(violated,rwd):
-#     if violated:
-#         rwd = %f
-#     return rwd
-#         ''' % (reward_val)
+
         mode = "a+"
         if not to_append:
             mode = "w"
         with open(f"{self.next_model_path}/{self.reward_api}", mode) as f:
             f.write(code)
+
+        return code
+
+    def reward(self, violated, rwd):
+        if violated:
+            rwd = -4.5
+        return rwd
+
+    def RewardAPI(self, x, y, rwd: float):
+        for property in self.properties:
+            x = [x]
+            y = [y]
+            code = self.get_constraint(property)
+            violated = self.exec_constraint(code, x, y)
+            rwd = self.reward(violated, rwd)
+        return rwd
 
     def call_train_api(self, **kwargs):
         if isinstance(self.train_api, Callable):
@@ -177,16 +212,6 @@ class Reintrainer:
         except Exception as e:
             util.log(e, level=CONSTANT.ERROR)
         return path
-
-    def reward(self, x, y, reward: float):
-        for property in self.properties:
-            x = [x]
-            y = [y]
-            code = self.get_constraint(property)
-            violated = self.exec_constraint(code, x, y)
-            if violated:
-                reward = -4.5
-        return reward
 
     def load_model(self, path: str) -> NN:
         return NN(path + "/" + self.onnx_filename)
