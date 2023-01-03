@@ -45,14 +45,15 @@ class Reintrainer:
         self.curr_model_path = init_model_path
         self.next_model_path = None
 
-        self.train_api = train_api
-        self.test_api = test_api
+        self.round = -1
 
         self.onnx_filename = onnx_filename
 
         self.save_path = save_path
         self.model_select = 'latest'
 
+        self.train_api = train_api
+        self.test_api = test_api
         if reward_api:
             if reward_api == "Callable":
                 self.reward_api = self.RewardAPI
@@ -65,9 +66,9 @@ class Reintrainer:
                 self.reward_api = self.REWARD_API_FILENAME
 
     def train(self, round: int, step: int):
-        for rnd in range(round):
+        for self.round in range(self.round + 1, self.round + 1 + round):
             util.log_prompt(4)
-            util.log("*" * 20 + " Round %d " % rnd + "*" * 20, level=CONSTANT.WARNING)
+            util.log("*" * 20 + " Round %d " % self.round + "*" * 20, level=CONSTANT.WARNING)
 
             # optimizer = BayesianOptimization()
             # optimizer.maximize()
@@ -88,7 +89,7 @@ class Reintrainer:
             # %% Train
             util.log_prompt(3)
             util.log("########## Training Part ##########\n", level=CONSTANT.INFO)
-            self.next_model_path = self.get_next_model_path(rnd)
+            self.next_model_path = self.get_next_model_path(self.round)
 
             self.generate_constant()
             self.generate_reward()
@@ -97,7 +98,6 @@ class Reintrainer:
 
             self.curr_model_path = self.next_model_path
             util.log("\n## Current model path: \n%s" % self.curr_model_path, level=CONSTANT.INFO)
-            break
 
 
     def generate_constant(self):
@@ -205,8 +205,8 @@ class Reintrainer:
         exec(code)
         return locals()[drlp.IS_VIOLATED_ID](x, y)
 
-    def get_next_model_path(self, rnd: int):
-        path = self.save_path + "/" + "bo_%d" % rnd
+    def get_next_model_path(self, round: int):
+        path = self.save_path + "/" + "bo_%d" % round
         try:
             os.makedirs(path, exist_ok=True)
         except Exception as e:
