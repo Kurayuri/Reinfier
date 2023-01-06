@@ -65,7 +65,7 @@ class Reintrainer:
             elif isinstance(self.train_api, str):
                 self.reward_api = self.REWARD_API_FILENAME
 
-    def train(self, round: int, step: int):
+    def train(self, round: int, cycle: int):
         for self.round in range(self.round + 1, self.round + 1 + round):
             util.log_prompt(4)
             util.log("*" * 20 + " Round %d " % self.round + "*" * 20, level=CONSTANT.WARNING)
@@ -94,11 +94,10 @@ class Reintrainer:
             self.generate_constant()
             self.generate_reward()
 
-            self.call_train_api(total_timestep=step)
+            self.call_train_api(total_cycle=cycle)
 
             self.curr_model_path = self.next_model_path
             util.log("\n## Current model path: \n%s" % self.curr_model_path, level=CONSTANT.INFO)
-
 
     def generate_constant(self):
         code = self.get_constraint(self.properties[0])
@@ -173,7 +172,7 @@ class Reintrainer:
 
         elif isinstance(self.train_api, str):
             cmd = self.train_api + " " \
-                f"--total_timestep  {kwargs['total_timestep']} " \
+                f"--total_cycle  {kwargs['total_cycle']} " \
                 f"--next_model_path {self.next_model_path} " \
                 f"--reward_api      {self.reward_api} " \
                 ""
