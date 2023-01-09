@@ -4,7 +4,7 @@ from ..import alg
 from ..import drlp
 from ..import util
 from ..import CONSTANT
-from typing import Callable, Dict, List, Set, Union
+from typing import Callable, Dict, List, Set, Union, Tuple
 from bayes_opt import BayesianOptimization
 import pandas as pd
 import subprocess
@@ -32,7 +32,7 @@ class Reintrainer:
 
     def __init__(self, properties: List[DRLP], curriculum_chosen_func: Callable,
                  init_model_path: str, verifier: str, save_path: str,
-                 train_api: Union[Callable, str], test_api: Union[Callable, str], reward_api: str = None,
+                 train_api: Union[Callable, str, Tuple[str, str]], test_api: Union[Callable, str, Tuple[str, str]], reward_api: str = None,
                  onnx_filename: str = "model.onnx"
                  ):
         self.properties = properties
@@ -62,7 +62,8 @@ class Reintrainer:
         else:
             if isinstance(self.train_api, Callable):
                 self.reward_api = self.RewardAPI
-            elif isinstance(self.train_api, str):
+            elif isinstance(self.train_api, str) or \
+                    isinstance(self.train_api, Tuple):
                 self.reward_api = self.REWARD_API_FILENAME
 
     def train(self, round: int, cycle: int):
@@ -170,8 +171,13 @@ class Reintrainer:
                 kwargs["curr_model_path"] = self.curr_model_path
             self.train_api(**kwargs)
 
-        elif isinstance(self.train_api, str):
-            cmd = self.train_api + " " \
+        elif isinstance(self.train_api, str) or \
+                isinstance(self.train_api, Tuple):
+            cmd_prefix = self.train_api
+            cmd_suffix = ""
+            if isinstance(self.train_api, Tuple):
+                cmd_prefix, cmd_suffix = self.train_api
+            cmd = cmd_prefix + " " \
                 f"--total_cycle  {kwargs['total_cycle']} " \
                 f"--next_model_path {self.next_model_path} " \
                 f"--reward_api      {self.reward_api} " \
@@ -179,7 +185,8 @@ class Reintrainer:
 
             if self.curr_model_path:
                 cmd += f"--curr_model_path {self.curr_model_path} "
-
+            cmd += cmd_suffix
+            
             util.log(cmd, level=CONSTANT.INFO)
             # with subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as process:
             #     for line in process.stdout:
