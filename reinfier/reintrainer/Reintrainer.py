@@ -102,7 +102,7 @@ class Reintrainer:
 
     def generate_constant(self):
         code = self.get_constraint(self.properties[0])
-        with open(f"{self.next_model_path}/{self.reward_api}", "w") as f:
+        with open(os.path.join(self.next_model_path, self.reward_api), "w") as f:
             f.write(code)
         return code
 
@@ -143,7 +143,7 @@ class Reintrainer:
         mode = "a+"
         if not to_append:
             mode = "w"
-        with open(f"{self.next_model_path}/{self.reward_api}", mode) as f:
+        with open(os.path.join(self.next_model_path, self.reward_api), mode) as f:
             f.write(code)
 
         return code
@@ -186,7 +186,7 @@ class Reintrainer:
             if self.curr_model_path:
                 cmd += f"--curr_model_path {self.curr_model_path} "
             cmd += cmd_suffix
-            
+
             util.log(cmd, level=CONSTANT.INFO)
             # with subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as process:
             #     for line in process.stdout:
@@ -212,7 +212,7 @@ class Reintrainer:
         return locals()[drlp.IS_VIOLATED_ID](x, y)
 
     def get_next_model_path(self, round: int):
-        path = self.save_path + "/" + "bo_%d" % round
+        path = f"{self.save_path}/round_{round}"
         try:
             os.makedirs(path, exist_ok=True)
         except Exception as e:
@@ -220,7 +220,7 @@ class Reintrainer:
         return path
 
     def load_model(self, path: str) -> NN:
-        return NN(path + "/" + self.onnx_filename)
+        return NN(os.path.join(path, self.onnx_filename))
 
     # def get_model_from(path: str, opt='latest') -> str:
     #     if opt == 'latest':

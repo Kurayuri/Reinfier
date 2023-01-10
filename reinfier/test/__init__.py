@@ -1,11 +1,12 @@
 """Reinfier.Test Sample"""
 from ..nn.NN import NN
 from ..drlp.DRLP import DRLP
+import os
 
 
 def get_sample_path():
     path = str(__file__)
-    path = path.rsplit("/", 1)[0] + "/" + "test01/"
-    network = path + "nn/test01.onnx"
-    property = path + "drlp/test01_p1.drlp"
+    path = os.path.join(os.path.dirname(path), "test01")
+    network = os.path.join(path, "nn", "test01.onnx")
+    property = os.path.join(path, "drlp", "test01_p1.drlp")
     return NN(network), DRLP(property)

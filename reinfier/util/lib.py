@@ -5,11 +5,7 @@ import time
 
 
 def get_filename_from_path(path: str):
-    path = path.rsplit("/", 1)
-    if len(path) == 1:
-        return path[0]
-    else:
-        return path[1]
+    return os.path.basename(path)
 
 
 def get_savepath(filename, step: int, type: str):
