@@ -17,5 +17,13 @@ class NN:
         else:
             raise Exception("Invalid type to initialize NN object")
 
+    def save(self, path: str = None):
+        try:
+            if path is None:
+                path = self.path
+            open(path, "w").write(self.obj)
+        except BaseException:
+            raise BaseException
+
     def __str__(self):
         return self.path

@@ -106,30 +106,42 @@ def unroll_nn(network: NN, depth: int, branchable=False) -> NN:
 
             # concat_name="Concat"
             # concat_names=[]
+            ssname=[convert_name("Split", step) for step in range(depth)]
+            true_split_node=onnx.helper.make_node(
+                name="main",
+                op_type="Split",
+                axis=1,
+                split=[graph_input_length]*depth,
+                inputs=[graph_input.name],
+                outputs=ssname
+            )
+            graph_node.append(true_split_node)
+
+
             for step in range(depth):
                 # Add Split node
-                start_index = step * graph_input_length
-                indices_name = convert_name("SplitIndeices", step)
-                mat = np.zeros((depth * graph_input_length, graph_input_length))
-                for i in range(graph_input_length):
-                    mat[start_index + i, i] = 1
+                # start_index = step * graph_input_length
+                # indices_name = convert_name("SplitIndeices", step)
+                # mat = np.zeros((depth * graph_input_length, graph_input_length))
+                # for i in range(graph_input_length):
+                #     mat[start_index + i, i] = 1
 
-                tensor = onnx.helper.make_tensor(
-                    name=indices_name,
-                    data_type=onnx.TensorProto.FLOAT,
-                    dims=(depth * graph_input_length, graph_input_length),
-                    vals=mat.flatten()
-                )
-                initializer.append(tensor)
+                # tensor = onnx.helper.make_tensor(
+                #     name=indices_name,
+                #     data_type=onnx.TensorProto.FLOAT,
+                #     dims=(depth * graph_input_length, graph_input_length),
+                #     vals=mat.flatten()
+                # )
+                # initializer.append(tensor)
 
                 split_name = convert_name("Split", step)
-                split_node = onnx.helper.make_node(
-                    name=split_name,
-                    op_type="MatMul",
-                    inputs=[graph_input.name, indices_name],
-                    outputs=[split_name]
-                )
-                graph_node.append(split_node)
+                # split_node = onnx.helper.make_node(
+                #     name=split_name,
+                #     op_type="MatMul",
+                #     inputs=[graph_input.name, indices_name],
+                #     outputs=[split_name]
+                # )
+                # graph_node.append(split_node)
 
                 # Input copy
 

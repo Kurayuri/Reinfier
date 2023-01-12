@@ -18,6 +18,15 @@ class DRLP:
         else:
             raise Exception("Invalid type to initialize DRLP object")
 
+    def save(self, path: str = None):
+        try:
+            if path is None:
+                path = self.path
+            open(path, "w").write(self.obj)
+        except BaseException:
+            raise BaseException
+
+
     def edit(self, code: str, to_overwrite: bool = False) -> str:
         if to_overwrite:
             return self.overwrite(code)
