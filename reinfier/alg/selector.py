@@ -1,13 +1,16 @@
+from ..drlp.DRLP import DRLP
+from ..nn.NN import NN
 from ..import CONSTANT
 from ..import Setting
 from ..import dnnv
 from ..import drlp
 from ..import util
 from ..import nn
+from typing import Tuple, Union, List
 import json
 
 
-def select_verifier(networks, properties, verifiers: list = None, network_alias: str = "N"):
+def select_verifier(networks: Union[NN, List[NN]], properties: Union[DRLP, List[DRLP]], verifiers: list = None, network_alias: str = "N"):
     util.log("## Selecting verifier...", level=CONSTANT.INFO)
     if verifiers is None:
         if Setting.ToTestAllVerifier:
@@ -23,7 +26,7 @@ def select_verifier(networks, properties, verifiers: list = None, network_alias:
     else:
         Setting.set_LogLevel(CONSTANT.ERROR)
 
-    if isinstance(networks, str) and isinstance(properties, str):
+    if isinstance(networks, NN) and isinstance(properties, DRLP):
         network = networks
         property = properties
         networks = []
@@ -36,7 +39,7 @@ def select_verifier(networks, properties, verifiers: list = None, network_alias:
             })
             # nn.expander.unroll_nn(network, i))
 
-            code, dnnp = drlp.parser.parse_pq(property, i)
+            dnnp = drlp.parser.parse_pq(property, i)
             properties.append(dnnp)
 
     status = {}
@@ -49,13 +52,13 @@ def select_verifier(networks, properties, verifiers: list = None, network_alias:
             "log": []
         }
         for j in range(0, num):
-            network = networks[j][nn.util.is_branchable(verifier)]
+            network = networks[j][nn.lib.is_branchable(verifier)]
             property = properties[j]
             runable, result, time = dnnv.booter.boot_dnnv(
                 network=network, property=property, verifier=verifier)
             status[verifier]["log"].append({
-                "network": network,
-                "property": property,
+                "network": network.path,
+                "property": property.path,
                 "runable": runable,
                 "result": result,
                 "time": time
@@ -76,4 +79,3 @@ def select_verifier(networks, properties, verifiers: list = None, network_alias:
     util.log("## Chosen verifier: \n" + time_sum_min_verifier + "\n", level=CONSTANT.INFO)
 
     return time_sum_min_verifier
-

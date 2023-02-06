@@ -2,6 +2,7 @@ from ..nn.NN import NN
 from ..import CONSTANT
 from ..import util
 from .import onnx_runner
+from onnx import numpy_helper
 import numpy as np
 import onnx
 import copy

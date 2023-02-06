@@ -32,7 +32,7 @@ class Reintrainer:
 
     def __init__(self, properties: List[DRLP], curriculum_chosen_func: Callable,
                  init_model_path: str, verifier: str, save_path: str,
-                 train_api: Union[Callable, str, Tuple[str, str]], test_api: Union[Callable, str, Tuple[str, str]], reward_api: str = None,
+                 train_api: Union[Callable, str, Tuple[str, str]], test_api: Union[Callable, str, Tuple[str, str]], reward_api_type: str = None,
                  onnx_filename: str = "model.onnx"
                  ):
         self.properties = properties
@@ -54,10 +54,10 @@ class Reintrainer:
 
         self.train_api = train_api
         self.test_api = test_api
-        if reward_api:
-            if reward_api == "Callable":
+        if reward_api_type:
+            if reward_api_type == "Callable":
                 self.reward_api = self.RewardAPI
-            elif reward_api == "str":
+            elif reward_api_type == "str":
                 self.reward_api = self.REWARD_API_FILENAME
         else:
             if isinstance(self.train_api, Callable):
