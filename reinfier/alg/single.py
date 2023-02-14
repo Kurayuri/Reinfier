@@ -17,7 +17,7 @@ def bmc(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_mi
     for k in range(k_min, k_max + 1):
 
         dnn = nn.expander.unroll_nn(network, k, branchable=nn.lib.is_branchable(verifier))
-        dnnp = drlp.parser.parse_pq(property, k)
+        dnnp = drlp.parser.parse_vpq(property, k)[0]
 
         runable, result, time = dnnv.booter.boot_dnnv(dnn, dnnp, verifier)
         lib.log_call(k, runable, result, time, "base")
@@ -37,7 +37,7 @@ def k_induction(network: NN, property: DRLP, verifier: str = None, k_max: int = 
     for k in range(k_min, k_max + 1):
 
         dnn = nn.expander.unroll_nn(network, k, branchable=nn.lib.is_branchable(verifier))
-        dnnp = drlp.parser.parse_pq(property, k)
+        dnnp = drlp.parser.parse_vpq(property, k)[0]
 
         runable, result, time = dnnv.booter.boot_dnnv(dnn, dnnp, verifier)
         lib.log_call(k, runable, result, time, "base")
@@ -45,7 +45,7 @@ def k_induction(network: NN, property: DRLP, verifier: str = None, k_max: int = 
         if result == True:
 
             dnn = nn.expander.unroll_nn(network, k + 1, branchable=nn.lib.is_branchable(verifier))
-            dnnp = drlp.parser.parse_pq(property, k, {}, True)
+            dnnp = drlp.parser.parse_vpq(property, k, {}, True)[0]
 
             runable, result, time = dnnv.booter.boot_dnnv(dnn, dnnp, verifier)
             lib.log_call(k, runable, result, time, "induction")

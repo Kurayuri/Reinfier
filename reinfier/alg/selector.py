@@ -39,7 +39,7 @@ def select_verifier(networks: Union[NN, List[NN]], properties: Union[DRLP, List[
             })
             # nn.expander.unroll_nn(network, i))
 
-            dnnp = drlp.parser.parse_pq(property, i)
+            dnnp = drlp.parser.parse_vpq(property, i)[0]
             properties.append(dnnp)
 
     status = {}

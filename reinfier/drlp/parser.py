@@ -41,6 +41,7 @@ def parse_drlp(property: DRLP, depth: int, kwgs: dict = {}) -> DNNP:
     ast_root_p = ast.parse(drlp_p)
     ast_root_q = ast.parse(drlp_q)
     # util.log(astpretty.pformat(ast_root_p, show_offsets=False))
+    # pprint(ast_root_p)
 
     (ast_root_p, ast_root_q), input_size, output_size = transform_pipeline((ast_root_p, ast_root_q), depth, kwgs)
 
@@ -90,7 +91,7 @@ def parse_drlp_induction(property: DRLP, depth: int, kwargs: dict = {}) -> DNNP:
 
 
 def parse_drlps(property: DRLP, depth: int, to_induct: bool = False, to_filter_unused_variables: bool = True) -> List[DNNP]:
-    ''' Parse DRLP VPQ'''
+    '''Parse DRLP VPQ'''
     filename, drlp_vpq = read_drlp(property)
     drlp_v, drlp_pq = split_drlp_vpq(drlp_vpq)
 
@@ -116,12 +117,12 @@ def parse_drlps(property: DRLP, depth: int, to_induct: bool = False, to_filter_u
 
 
 def parse_drlps_induction(property: str, depth: int, to_filter_unused_variables: bool = True) -> List[DNNP]:
-    ''' Parse DRLP VPQ for k-induction'''
+    '''Parse DRLP VPQ for k-induction'''
     return parse_drlps(property, depth, True, to_filter_unused_variables)
 
 
 def parse_drlps_v(property: DRLP, to_filter_unused_variables: bool = True) -> List[DRLP]:
-    ''' Parse DRLP V'''
+    '''Parse DRLP V'''
     kwargss = get_product(get_variables(property))
     filename, drlp_vpq = read_drlp(property)
     drlp_v, drlp_pq = split_drlp_vpq(drlp_vpq)
@@ -132,7 +133,7 @@ def parse_drlps_v(property: DRLP, to_filter_unused_variables: bool = True) -> Li
     for kwargs in kwargss:
         ast_root_p = ast.parse(drlp_p)
         ast_root_q = ast.parse(drlp_q)
-        __, (ast_root_p, ast_root_q) = transform(DRLPTransformer_VR(kwargs=kwargs), (ast_root_p, ast_root_q))
+        __, (ast_root_p, ast_root_q) = transform(DRLPTransformer_Concretize(kwargs=kwargs), (ast_root_p, ast_root_q))
 
         drlp_pqi = make_drlp(ast_root_p, ast_root_q)
         util.log("## DRLP:\n", drlp_pqi)
@@ -246,7 +247,9 @@ def parse_constaint_to_code(property: DRLP) -> str:
 
 
 def parse_pq(property: DRLP, depth: int, kwargs: dict = {}, to_induct: bool = False) -> DNNP:
-    '''API to parse DRLP_PQ part'''
+    '''API to parse delp_pq part
+       Note that any statements in drlp_v are ignored, which may cause unconcretized values'''
+    
     if to_induct:
         return parse_drlp_induction(property, depth, kwargs)
     else:
@@ -254,10 +257,10 @@ def parse_pq(property: DRLP, depth: int, kwargs: dict = {}, to_induct: bool = Fa
 
 
 def parse_vpq(property: DRLP, depth: int, kwargs: dict = {}, to_induct: bool = False, to_filter_unused_variables: bool = True) -> List[DNNP]:
-    '''API to parse DRLP_VPQ part'''
+    '''API to parse drlp_vpq part'''
     return parse_drlps(property, depth, to_induct, to_filter_unused_variables)
 
 
 def parse_v(property: DRLP, to_filter_unused_variables: bool = True) -> List[DRLP]:
-    '''API to parse DRLP_V part'''
+    '''API to parse drlp_v part'''
     return parse_drlps_v(property, to_filter_unused_variables)

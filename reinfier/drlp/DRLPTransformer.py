@@ -1,3 +1,4 @@
+import astor
 import copy
 import ast
 import sys
@@ -44,10 +45,13 @@ class DRLPTransformer(ast.NodeTransformer):
         self.variables = set()
 
     def calculate(self, node):
-        expr = ast.Expression(body=node)
-        ast.fix_missing_locations(expr)
-        src = eval(compile(expr, filename="", mode="eval"))
-        src = str(src)
+        try:
+            expr = ast.Expression(body=node)
+            ast.fix_missing_locations(expr)
+            ans = eval(compile(expr, filename="", mode="eval"))
+        except BaseException:
+            ans = eval(astor.to_source(node))
+        src = str(ans)
         root = ast.parse(src)
         return root.body[0].value
 
@@ -77,13 +81,21 @@ class DRLPTransformer(ast.NodeTransformer):
         return node
 
 
-class DRLPTransformer_VR(DRLPTransformer):
+class DRLPTransformer_Concretize(DRLPTransformer):
     '''
-    Variables Replacement
+    Concretize all variables 
+    All variables are replaced by given dict "kwargs"
+    e.g.
+        kwargs = {a=1,b=[2],c=3}
+        a -> 1
+        b[0] -> 2
+        [c][0] -> 3
     '''
 
     def __init__(self, kwargs: dict = {}):
         super().__init__()
+        if kwargs is None:
+            self.kwargs = {}
         self.kwargs = kwargs
 
     def visit_Name(self, node: ast.Name):
@@ -93,19 +105,22 @@ class DRLPTransformer_VR(DRLPTransformer):
             )
         return node
 
+    def visit_Subscript(self, node: ast.Subscript):
+        node = self.generic_visit(node)
+        if isinstance(node.value, ast.Constant) or isinstance(node.value, ast.List):
+            node = self.calculate(node)
+        return node
+
 
 class DRLPTransformer_Init(DRLPTransformer):
     '''
     1. Get input_size and output_size
-    2. Replace parameters
+    2. Replace key parameters
     3. Calculate expression
     4. Unroll For and With
     '''
 
-    def __init__(self, depth=0, kwargs: dict = {}):
-        self.kwargs = kwargs
-        if kwargs is None:
-            self.kwargs = {}
+    def __init__(self, depth=0):
         super().__init__(depth)
 
     def visit_Assign(self, node: ast.Assign):
@@ -227,10 +242,6 @@ class DRLPTransformer_Init(DRLPTransformer):
         if node.id in self.iter_ids:
             return ast.Constant(
                 value=self.iter_vals[node.id]
-            )
-        if node.id in self.kwargs.keys():
-            return ast.Constant(
-                value=self.kwargs[node.id]
             )
         return node
 

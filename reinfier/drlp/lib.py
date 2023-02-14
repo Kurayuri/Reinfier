@@ -58,7 +58,9 @@ def make_dnnp(ast_root_p, ast_root_q):
     node_pq = []
     # Add And
     for ast_root in [ast_root_p, ast_root_q]:
-        if len(ast_root.body) < 2:
+        if len(ast_root.body) == 0:
+            node = ast.Constant(value=True, kind=None)
+        elif len(ast_root.body) == 1:
             node = ast_root.body[0]
         else:
             node = ast.Call(
@@ -145,7 +147,7 @@ def transform(transformer: DRLPTransformer, ast_roots):
 
 
 def transform_pipeline(ast_roots, depth: int, kwargs: dict, input_size: int = None, output_size: int = None):
-    transformer_init = DRLPTransformer_Init(depth, kwargs)
+    transformer_init = DRLPTransformer_Init(depth)
     for ast_root in ast_roots:
         ast_root = transformer_init.visit(ast_root)
 
@@ -156,6 +158,7 @@ def transform_pipeline(ast_roots, depth: int, kwargs: dict, input_size: int = No
     variables = transformer_init.variables
 
     transformers = [
+        DRLPTransformer_Concretize(kwargs),
         DRLPTransformer_1(depth, input_size, output_size),
         DRLPTransformer_2(depth),
         DRLPTransformer_RSC()
@@ -235,3 +238,7 @@ def filter_unused_variables(variables_v, variables_pq):
         if ki not in variables_pq:
             variables_v.pop(k)
     return variables_v
+
+
+def pprint(ast_root):
+    astpretty.pprint(ast_root, show_offsets=False)
