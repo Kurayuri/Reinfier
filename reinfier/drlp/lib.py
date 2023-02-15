@@ -208,7 +208,7 @@ def get_product(dicts):
 
 def get_variables_pq(drlp_pq):
     drlp_blocks = lib.split_drlp_pq(drlp_pq)
-    transformer = DRLPTransformer(1)
+    transformer = DRLPTransformer()
     for drlp_block in drlp_blocks:
         ast_root = ast.parse(drlp_block)
         ast_root = transformer.visit(ast_root)

@@ -33,8 +33,8 @@ class DRLPTransformer(ast.NodeTransformer):
     DNNP_FORALL_ID = "Forall"
     DNNP_SHAPE_OF_DIM_0 = "[0]"
 
-    def __init__(self, depth=0):
-        self.depth = depth
+    def __init__(self):
+        self.depth = 0
 
         self.input_size = None
         self.output_size = None
@@ -53,7 +53,7 @@ class DRLPTransformer(ast.NodeTransformer):
             ans = eval(astor.to_source(node))
         src = str(ans)
         root = ast.parse(src)
-        return root.body[0].value
+        return ans,root.body[0].value
 
     def flatten_list(self, lst):
         return [x for y in lst for x in y]
@@ -108,8 +108,9 @@ class DRLPTransformer_Concretize(DRLPTransformer):
     def visit_Subscript(self, node: ast.Subscript):
         node = self.generic_visit(node)
         if isinstance(node.value, ast.Constant) or isinstance(node.value, ast.List):
-            node = self.calculate(node)
+            __, node = self.calculate(node)
         return node
+
 
 
 class DRLPTransformer_Init(DRLPTransformer):
@@ -117,11 +118,13 @@ class DRLPTransformer_Init(DRLPTransformer):
     1. Get input_size and output_size
     2. Replace key parameters
     3. Calculate expression
-    4. Unroll For and With
+    4. Unroll For
+    5. Process With
     '''
 
-    def __init__(self, depth=0):
-        super().__init__(depth)
+    def __init__(self, depth):
+        super().__init__()
+        self.depth = depth
 
     def visit_Assign(self, node: ast.Assign):
         '''Read input_size and output_size'''
@@ -141,15 +144,15 @@ class DRLPTransformer_Init(DRLPTransformer):
                     assert self.output_size == node.value.value, "output sizes are not equal"
         return node
 
-    #
+    
     def visit_BinOp(self, node: ast.BinOp):
         node = self.generic_visit(node)
         if ((isinstance(node.left, ast.List) and isinstance(node.right, ast.Constant)) or
                 (isinstance(node.right, ast.List) and isinstance(node.left, ast.Constant))):
             if isinstance(node.op, ast.Mult):
-                return self.calculate(node)
+                return self.calculate(node)[1]
         if isinstance(node.left, ast.Constant) and isinstance(node.right, ast.Constant):
-            return self.calculate(node)
+            return self.calculate(node)[1]
         return node
 
     def visit_Compare(self, node: ast.Compare):
@@ -269,11 +272,14 @@ class DRLPTransformer_Init(DRLPTransformer):
 
 class DRLPTransformer_1(DRLPTransformer):
     '''
-    Subscript Transform
+    1. Transform Subscript
+    2. Process If
+  
     '''
 
     def __init__(self, depth, input_size, output_size):
-        super().__init__(depth)
+        super().__init__()
+        self.depth=depth
         self.input_size = input_size
         self.output_size = output_size
 
@@ -404,6 +410,18 @@ class DRLPTransformer_1(DRLPTransformer):
             elements = [j for i in node.elts for j in i.elts]
             node.elts = elements
         return node
+    
+    def visit_If(self, node: ast.If):
+        node = self.generic_visit(node)
+        if self.calculate(node.test)[0] == True:
+            node = ast.Call(
+                func = ast.Name(id=self.DNNP_AND_ID, ctx=ast.Load()),
+                args = node.body,
+                keywords = []
+            )
+        else:
+            node = None
+        return node
 
 
 class DRLPTransformer_2(DRLPTransformer):
@@ -412,7 +430,8 @@ class DRLPTransformer_2(DRLPTransformer):
     '''
 
     def __init__(self, depth):
-        super().__init__(depth)
+        super().__init__()
+        self.depth=depth
 
     def visit_Name(self, node: ast.Name):
         if node.id == self.INPUT_ID:
@@ -446,7 +465,8 @@ class DRLPTransformer_Induction(DRLPTransformer):
     '''
 
     def __init__(self, depth, input_size, output_size, to_fix_subscript=True):
-        super().__init__(depth)
+        super().__init__()
+        self.depth=depth
         self.input_size = input_size
         self.output_size = output_size
         self.fix_subsript = to_fix_subscript
@@ -504,7 +524,7 @@ class DRLPTransformer_RSC(DRLPTransformer):
     Simplifiable Call: And/Or Call with 0/1 arg1
     '''
 
-    def __init__(self,):
+    def __init__(self):
         super().__init__()
 
     def visit_Expr(self, node: ast.Expr):
