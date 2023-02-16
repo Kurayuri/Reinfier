@@ -1,6 +1,7 @@
 from ..import CONSTANT
 from ..import util
 from .DRLPTransformer import *
+from .error import *
 from .DRLP import DRLP
 from .DNNP import DNNP
 from .import lib
@@ -26,7 +27,7 @@ def split_drlp_pq(drlp_pq):
         if len(drlp_pq) != 2:
             raise Exception
     except Exception:
-        raise DRLPParsingError("Invalid DRLP format")
+        raise DRLPParsingError('Invalid DRLP format, DRLP cannot be splitted by EXPECTATION_DELIMITER "@Exp"')
     return drlp_pq[0], drlp_pq[1]
 
 
@@ -36,7 +37,7 @@ def split_drlp_vpq(drlp_vpq):
         if len(drlp_vpq) != 2:
             drlp_vpq.insert(0, "")
     except Exception as e:
-        raise DRLPParsingError("Invalid DRLP format")
+        raise DRLPParsingError('Invalid DRLP format, DRLP cannot be splitted by PRECONDITION_DELIMITER "@Pre"')
     return drlp_vpq[0], drlp_vpq[1]
 
 

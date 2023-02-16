@@ -1,17 +1,8 @@
+from .error import *
 import astor
 import copy
 import ast
 import sys
-
-
-class DRLPParsingError(Exception):
-    def __init__(self, msg: str, *args: object, lineno=None, col_offset=None):
-        if lineno is not None:
-            prefix = f"line {lineno}"
-            if col_offset is not None:
-                prefix = f"{prefix}, col {col_offset}"
-            msg = f"{prefix}: {msg}"
-        super().__init__(msg, *args)
 
 
 class DRLPTransformer(ast.NodeTransformer):
@@ -53,7 +44,7 @@ class DRLPTransformer(ast.NodeTransformer):
             ans = eval(astor.to_source(node))
         src = str(ans)
         root = ast.parse(src)
-        return ans,root.body[0].value
+        return ans, root.body[0].value
 
     def flatten_list(self, lst):
         return [x for y in lst for x in y]
@@ -83,7 +74,7 @@ class DRLPTransformer(ast.NodeTransformer):
 
 class DRLPTransformer_Concretize(DRLPTransformer):
     '''
-    Concretize all variables 
+    Concretize all variables
     All variables are replaced by given dict "kwargs"
     e.g.
         kwargs = {a=1,b=[2],c=3}
@@ -112,7 +103,6 @@ class DRLPTransformer_Concretize(DRLPTransformer):
         return node
 
 
-
 class DRLPTransformer_Init(DRLPTransformer):
     '''
     1. Get input_size and output_size
@@ -135,16 +125,17 @@ class DRLPTransformer_Init(DRLPTransformer):
                     self.input_size = node.value.value
                     return None
                 else:
-                    assert self.input_size == node.value.value, "input sizes are not equal"
+                    if self.input_size != node.value.value:
+                        raise DRLPParsingError("Input sizes are not equal")
             if target.id == self.OUTPUT_SIZE_ID:
                 if self.output_size is None:
                     self.output_size = node.value.value
                     return None
                 else:
-                    assert self.output_size == node.value.value, "output sizes are not equal"
+                    if self.output_size != node.value.value:
+                        raise DRLPParsingError("Output sizes are not equal")
         return node
 
-    
     def visit_BinOp(self, node: ast.BinOp):
         node = self.generic_visit(node)
         if ((isinstance(node.left, ast.List) and isinstance(node.right, ast.Constant)) or
@@ -174,12 +165,14 @@ class DRLPTransformer_Init(DRLPTransformer):
                 if self.input_size is None:
                     self.input_size = size
                 else:
-                    assert self.input_size == size, "input sizes are not equal"
+                    if self.input_size != node.value.value:
+                        raise DRLPParsingError("Input sizes are not equal")
             if io_element.id == self.OUTPUT_ID:
                 if self.output_size is None:
                     self.output_size = size
                 else:
-                    assert self.output_size == size, "output sizes are not equal"
+                    if self.output_size != node.value.value:
+                        raise DRLPParsingError("Output sizes are not equal")
         return node
 
     def visit_For(self, node: ast.For):
@@ -274,134 +267,135 @@ class DRLPTransformer_1(DRLPTransformer):
     '''
     1. Transform Subscript
     2. Process If
-  
+
     '''
 
     def __init__(self, depth, input_size, output_size):
         super().__init__()
-        self.depth=depth
+        self.depth = depth
         self.input_size = input_size
         self.output_size = output_size
 
     def visit_Subscript(self, node: ast.Subscript):
 
         index = None
+        try:
+            if sys.version_info >= (3, 9):
+                # Dim 1
+                if isinstance(node.value, ast.Name):
+                    node = self.generic_visit(node)
+                    if node.value.id == self.INPUT_ID or node.value.id == self.OUTPUT_ID:
+                        if isinstance(node.slice, ast.Constant):
+                            index = node.slice.value
+                            if node.value.id == self.INPUT_ID:
+                                lower = index * self.input_size
+                                upper = lower + self.input_size
+                            if node.value.id == self.OUTPUT_ID:
+                                lower = index * self.output_size
+                                upper = lower + self.output_size
 
-        if sys.version_info >= (3, 9):
-            # Dim 1
-            if isinstance(node.value, ast.Name):
-                node = self.generic_visit(node)
-                if node.value.id == self.INPUT_ID or node.value.id == self.OUTPUT_ID:
-                    if isinstance(node.slice, ast.Constant):
-                        index = node.slice.value
-                        if node.value.id == self.INPUT_ID:
-                            lower = index * self.input_size
-                            upper = lower + self.input_size
-                        if node.value.id == self.OUTPUT_ID:
-                            lower = index * self.output_size
-                            upper = lower + self.output_size
+                    if index is not None:
+                        if lower + 1 == upper:
+                            node.slice = ast.Constant(value=lower)
+                        else:
+                            node.slice = ast.Slice(
+                                lower=ast.Constant(value=lower),
+                                upper=ast.Constant(value=upper)
+                            )
+                # Dim 2
+                elif isinstance(node.value, ast.Subscript):
+                    self.generic_visit(node.value.value)
+                    self.generic_visit(node.value.slice)
+                    self.generic_visit(node.slice)
+                    if node.value.value.id == self.INPUT_ID or node.value.value.id == self.OUTPUT_ID:
+                        if isinstance(node.value.slice, ast.Constant):
+                            index = node.value.slice.value
+                            if node.value.value.id == self.INPUT_ID:
+                                lower = index * self.input_size
+                            if node.value.value.id == self.OUTPUT_ID:
+                                lower = index * self.output_size
+                    if index is not None:
+                        if isinstance(node.slice, ast.Constant):
+                            lower = lower + node.slice.value
+                            upper = lower + 1
+                        if isinstance(node.slice, ast.Slice):
+                            upper = lower + node.slice.upper.value
+                            lower = lower + node.slice.lower.value
+                        node.value = node.value.value
+                        # node.value=ast.Name(id=node.value.value.id,ctx=ast.Load())
 
-                if index is not None:
-                    if lower + 1 == upper:
-                        node.slice = ast.Constant(value=lower)
-                    else:
-                        node.slice = ast.Slice(
-                            lower=ast.Constant(value=lower),
-                            upper=ast.Constant(value=upper)
-                        )
-            # Dim 2
-            elif isinstance(node.value, ast.Subscript):
-                self.generic_visit(node.value.value)
-                self.generic_visit(node.value.slice)
-                self.generic_visit(node.slice)
-                if node.value.value.id == self.INPUT_ID or node.value.value.id == self.OUTPUT_ID:
-                    if isinstance(node.value.slice, ast.Constant):
-                        index = node.value.slice.value
-                        if node.value.value.id == self.INPUT_ID:
-                            lower = index * self.input_size
-                        if node.value.value.id == self.OUTPUT_ID:
-                            lower = index * self.output_size
-                if index is not None:
-                    if isinstance(node.slice, ast.Constant):
-                        lower = lower + node.slice.value
-                        upper = lower + 1
-                    if isinstance(node.slice, ast.Slice):
-                        upper = lower + node.slice.upper.value
-                        lower = lower + node.slice.lower.value
-                    node.value = node.value.value
-                    # node.value=ast.Name(id=node.value.value.id,ctx=ast.Load())
+                        if lower + 1 == upper:
+                            node.slice = ast.Constant(value=lower)
+                        else:
+                            node.slice = ast.Slice(
+                                lower=ast.Constant(value=lower),
+                                upper=ast.Constant(value=upper)
+                            )
 
-                    if lower + 1 == upper:
-                        node.slice = ast.Constant(value=lower)
-                    else:
-                        node.slice = ast.Slice(
-                            lower=ast.Constant(value=lower),
-                            upper=ast.Constant(value=upper)
-                        )
+            elif sys.version_info >= (3, 8):
+                # Dim 1
+                if isinstance(node.value, ast.Name):
+                    node = self.generic_visit(node)
+                    if node.value.id == self.INPUT_ID or node.value.id == self.OUTPUT_ID:
+                        if isinstance(node.slice, ast.Slice):
+                            index = node.slice.lower.value
+                            if node.value.id == self.INPUT_ID:
+                                lower = node.slice.lower.value * self.input_size
+                                upper = node.slice.upper.value * self.input_size
+                            if node.value.id == self.OUTPUT_ID:
+                                lower = node.slice.lower.value * self.output_size
+                                upper = node.slice.upper.value * self.output_size
+                        # if isinstance(node.slice,ast.Slice):
+                        #     pass
+                        elif isinstance(node.slice.value, ast.Constant):
+                            index = node.slice.value.value
+                            if node.value.id == self.INPUT_ID:
+                                lower = index * self.input_size
+                                upper = lower + self.input_size
+                            if node.value.id == self.OUTPUT_ID:
+                                lower = index * self.output_size
+                                upper = lower + self.output_size
+                    if index is not None:
+                        if lower + 1 == upper:
+                            node.slice = ast.Index(ast.Constant(value=lower))
+                        else:
+                            node.slice = ast.Slice(
+                                lower=ast.Constant(value=lower),
+                                upper=ast.Constant(value=upper),
+                                step=None
+                            )
+                # Dim 2
+                elif isinstance(node.value, ast.Subscript):
+                    self.generic_visit(node.value.value)
+                    self.generic_visit(node.value.slice)
+                    self.generic_visit(node.slice)
+                    if node.value.value.id == self.INPUT_ID or node.value.value.id == self.OUTPUT_ID:
+                        if isinstance(node.value.slice.value, ast.Constant):
+                            index = node.value.slice.value.value
+                            if node.value.value.id == self.INPUT_ID:
+                                lower = index * self.input_size
+                            if node.value.value.id == self.OUTPUT_ID:
+                                lower = index * self.output_size
+                    if index is not None:
+                        if isinstance(node.slice, ast.Index):
+                            lower = lower + node.slice.value.value
+                            upper = lower + 1
+                        if isinstance(node.slice, ast.Slice):
+                            upper = lower + node.slice.upper.value
+                            lower = lower + node.slice.lower.value
+                        node.value = node.value.value
+                        # node.value=ast.Name(id=node.value.value.id,ctx=ast.Load())
 
-        elif sys.version_info >= (3, 8):
-            # Dim 1
-            if isinstance(node.value, ast.Name):
-                node = self.generic_visit(node)
-                if node.value.id == self.INPUT_ID or node.value.id == self.OUTPUT_ID:
-                    if isinstance(node.slice, ast.Slice):
-                        index = node.slice.lower.value
-                        if node.value.id == self.INPUT_ID:
-                            lower = node.slice.lower.value * self.input_size
-                            upper = node.slice.upper.value * self.input_size
-                        if node.value.id == self.OUTPUT_ID:
-                            lower = node.slice.lower.value * self.output_size
-                            upper = node.slice.upper.value * self.output_size
-                    # if isinstance(node.slice,ast.Slice):
-                    #     pass
-                    elif isinstance(node.slice.value, ast.Constant):
-                        index = node.slice.value.value
-                        if node.value.id == self.INPUT_ID:
-                            lower = index * self.input_size
-                            upper = lower + self.input_size
-                        if node.value.id == self.OUTPUT_ID:
-                            lower = index * self.output_size
-                            upper = lower + self.output_size
-                if index is not None:
-                    if lower + 1 == upper:
-                        node.slice = ast.Index(ast.Constant(value=lower))
-                    else:
-                        node.slice = ast.Slice(
-                            lower=ast.Constant(value=lower),
-                            upper=ast.Constant(value=upper),
-                            step=None
-                        )
-            # Dim 2
-            elif isinstance(node.value, ast.Subscript):
-                self.generic_visit(node.value.value)
-                self.generic_visit(node.value.slice)
-                self.generic_visit(node.slice)
-                if node.value.value.id == self.INPUT_ID or node.value.value.id == self.OUTPUT_ID:
-                    if isinstance(node.value.slice.value, ast.Constant):
-                        index = node.value.slice.value.value
-                        if node.value.value.id == self.INPUT_ID:
-                            lower = index * self.input_size
-                        if node.value.value.id == self.OUTPUT_ID:
-                            lower = index * self.output_size
-                if index is not None:
-                    if isinstance(node.slice, ast.Index):
-                        lower = lower + node.slice.value.value
-                        upper = lower + 1
-                    if isinstance(node.slice, ast.Slice):
-                        upper = lower + node.slice.upper.value
-                        lower = lower + node.slice.lower.value
-                    node.value = node.value.value
-                    # node.value=ast.Name(id=node.value.value.id,ctx=ast.Load())
-
-                    if lower + 1 == upper:
-                        node.slice = ast.Constant(value=lower)
-                    else:
-                        node.slice = ast.Slice(
-                            lower=ast.Constant(value=lower),
-                            upper=ast.Constant(value=upper),
-                            step=None
-                        )
-
+                        if lower + 1 == upper:
+                            node.slice = ast.Constant(value=lower)
+                        else:
+                            node.slice = ast.Slice(
+                                lower=ast.Constant(value=lower),
+                                upper=ast.Constant(value=upper),
+                                step=None
+                            )
+        except TypeError:
+            raise DRLPParsingError("Input size or output size are not specified or cannot be auto-inferred")
         return node
 
     def visit_List(self, node):
@@ -410,14 +404,14 @@ class DRLPTransformer_1(DRLPTransformer):
             elements = [j for i in node.elts for j in i.elts]
             node.elts = elements
         return node
-    
+
     def visit_If(self, node: ast.If):
         node = self.generic_visit(node)
         if self.calculate(node.test)[0] == True:
             node = ast.Call(
-                func = ast.Name(id=self.DNNP_AND_ID, ctx=ast.Load()),
-                args = node.body,
-                keywords = []
+                func=ast.Name(id=self.DNNP_AND_ID, ctx=ast.Load()),
+                args=node.body,
+                keywords=[]
             )
         else:
             node = None
@@ -431,7 +425,7 @@ class DRLPTransformer_2(DRLPTransformer):
 
     def __init__(self, depth):
         super().__init__()
-        self.depth=depth
+        self.depth = depth
 
     def visit_Name(self, node: ast.Name):
         if node.id == self.INPUT_ID:
@@ -468,7 +462,7 @@ class DRLPTransformer_Induction(DRLPTransformer):
 
     def __init__(self, depth, input_size, output_size, to_fix_subscript=True):
         super().__init__()
-        self.depth=depth
+        self.depth = depth
         self.input_size = input_size
         self.output_size = output_size
         self.fix_subsript = to_fix_subscript
