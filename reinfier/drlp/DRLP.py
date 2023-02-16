@@ -1,7 +1,8 @@
 from .DRLPTransformer import DRLPTransformer
 
+
 class DRLP:
-    def __init__(self, arg, kwargs=None):
+    def __init__(self, arg, kwargs=None, filename="tmp.drlp"):
         self.path = None
         self.obj = None
         self.kwargs = kwargs
@@ -12,7 +13,7 @@ class DRLP:
                     self.obj = f.read()
                 self.path = arg
             except Exception:
-                self.path = "tmp.drlp"
+                self.path = filename
                 self.obj = arg
 
         else:
@@ -25,7 +26,6 @@ class DRLP:
             open(path, "w").write(self.obj)
         except BaseException:
             raise BaseException
-
 
     def edit(self, code: str, to_overwrite: bool = False) -> str:
         if to_overwrite:
@@ -50,7 +50,7 @@ class DRLP:
         return self
 
     def __str__(self):
-        return self.path
+        return f"{self.path}\n{self.obj}"
 
     def __repr__(self):
         return self.path + str(self.kwargs)

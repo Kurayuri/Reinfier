@@ -2,7 +2,7 @@ import onnx
 
 
 class NN:
-    def __init__(self, arg):
+    def __init__(self, arg, filename="tmp.onnx"):
         self.path = None
         self.obj = None
         if isinstance(arg, str):
@@ -10,7 +10,7 @@ class NN:
             self.obj = onnx.load(arg)
         elif isinstance(arg, onnx.onnx_ml_pb2.ModelProto):
             self.obj
-            self.path = "tmp.onnx"
+            self.path = filename
         elif isinstance(arg, NN):
             self.path = arg.path
             self.obj = onnx.load(self.path)

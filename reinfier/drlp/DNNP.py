@@ -1,5 +1,5 @@
 class DNNP:
-    def __init__(self, arg):
+    def __init__(self, arg, filename="tmp.dnnp"):
         self.path = None
         self.obj = None
 
@@ -9,7 +9,7 @@ class DNNP:
                     self.obj = f.read()
                 self.path = arg
             except Exception:
-                self.path = "tmp.dnnp"
+                self.path = filename
                 self.obj = arg
 
         else:

@@ -70,25 +70,25 @@ def extract_stdout_ans(stdout):
 
 
 def boot_dnnv(network: NN, property: DNNP, verifier: str,
-              network_alias: str = "N", violation: str = None) -> Tuple[bool, bool, float]:
-    network = network.path
-    property = property.path
+              network_alias: str = "N", violation: str = None) -> Tuple[bool, bool, float, np.ndarray]:
+    network_path = network.path
+    property_path = property.path
     if violation is None:
-        violation = util.lib.get_savepath([network, property], None, "npy")
+        violation_path = util.lib.get_savepath([network_path, property_path], None, "npy")
 
     assert verifier in CONSTANT.VERIFIERS, "Unsupported verifier: %s" % verifier
 
     verifier = "--" + verifier
     dnnv = "dnnv"
     cmd = [dnnv,
-           property,
-           "--network", network_alias, network,
+           property_path,
+           "--network", network_alias, network_path,
            verifier,
-           "--save-violation", violation
+           "--save-violation", violation_path
            ]
 
-    if os.path.exists(violation):
-        os.remove(violation)
+    if os.path.exists(violation_path):
+        os.remove(violation_path)
 
     while True:
         util.log_prompt(1)
@@ -160,15 +160,17 @@ def boot_dnnv(network: NN, property: DNNP, verifier: str,
         util.log(("## Ans:"), level=CONSTANT.WARNING)
         util.log((runable, result, time), level=CONSTANT.WARNING)
 
+        violation = None
         if runable == True:
             if result == False:
-                ans = np.load(violation)
+                violation = np.load(violation_path)
                 util.log(("SAT"), level=CONSTANT.WARNING)
-                nn.onnx_runner.run_onnx(network=network, input=ans)
+                nn.onnx_runner.run_onnx(network=network_path, input=violation)
             else:
                 util.log(("UNSAT"), level=CONSTANT.WARNING)
         else:
             util.log(("Error"), level=CONSTANT.WARNING)
         break
+
     util.log_prompt(2)
-    return runable, result, time
+    return runable, result, time, violation

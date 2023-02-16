@@ -437,11 +437,13 @@ class DRLPTransformer_2(DRLPTransformer):
         if node.id == self.INPUT_ID:
             return ast.Name(
                 id=self.DNNP_INPUT_ID + self.DNNP_SHAPE_OF_DIM_0,
+                # id=self.DNNP_INPUT_ID,
                 ctx=ast.Load()
             )
         if node.id == self.OUTPUT_ID:
             return ast.Name(
                 id=self.DNNP_OUTPUT_ID + self.DNNP_SHAPE_OF_DIM_0,
+                # id=self.DNNP_OUTPUT_ID,
                 ctx=ast.Load()
             )
         return node

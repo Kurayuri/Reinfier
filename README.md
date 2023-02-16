@@ -4,6 +4,8 @@ Source code is available at [Reinfier](https://github.com/Kurayuri/Reinfier).
 ## Installation
 Reinfier is based on [DNNV](https://github.com/dlshriver/dnnv), which requrires verifiers of DNN ([Reluplex](https://github.com/guykatzz/ReluplexCav2017), [planet](https://github.com/progirep/planet), [MIPVerify.jl](https://github.com/vtjeng/MIPVerify.jl), [Neurify](https://github.com/tcwangshiqi-columbia/Neurify), [ERAN](https://github.com/eth-sri/eran), [BaB](https://github.com/oval-group/PLNN-verification), [marabou](https://github.com/NeuralNetworkVerification/Marabou), [nnenum](https://github.com/stanleybak/nnenum), [verinet](https://vas.doc.ic.ac.uk/software/neural/)).  
 
+For DRL verification, Reinfier now supports Marabou, Neurify, nnenum and Planet well. For DNN verifcation, Reinfier supports ones as same as DNNV.
+
 Building above verifers requires following packages of system:  
 ```shell
 cmake
@@ -37,29 +39,35 @@ Usage sample files to test:
 ```python
 import reinfier as rf
 
-dnn,drlp=rf.test.get_sample_path()
+network, property = rf.test.get_example()
 
-rf.k_induction(dnn,drlp)
+print(rf.verify(network, property))
 ```
 The result should be:
 ```python
-(2, False)
+(False, 2, <numpy.ndarray>)
 ```
-which means the property is False (SAT, Invalid) with verification depth is 2.
+which means the property is False (SAT, Invalid) with verification depth is 2, and a violation (counterexample) is given.
 
 ## Usage
+A **DRLP** object storing a property in DRLP format and an **NN** object storing an ONNX DNN are required for a basic DRL verification query in Reinfier.
+
 ```python
 import reinfier as rf
 
-dnn  = /path/to/onnx/deep/neural/network/file
-
-drlp = /path/to/drlp/file
+network = rf.NN("/path/to/ONNX/file")
 # or
-drlp = drlp_str
+network = rf.NN(ONNX_object)
 
-rf.k_induction(dnn,drlp) # k-induction algorithm (Recommended)
+property = rf.DRLP("/path/to/DRLP/file")
 # or
-rf.bmc(dnn,drlp) # bounded model checking algorithm
+property = rf.DRLP(DRLP_str)
+
+rf.verify(network, property) # Verify API (default k-induction algorithm, Recommended)
+# or
+rf.k_induction(network, property) # k-induction algorithm 
+# or
+rf.bmc(network, property) # bounded model checking algorithm
 ```
 
 ## DRLP
@@ -74,23 +82,27 @@ DRLP, i.e. Deep Reinforcement Learning Property, is a Pyhton-embedded DSL to des
 | Verification depths $k$  |        $k$       |      $int$      |
 ### Example
 ```python
+_a = [0,1]
+
+@Pre
 [[-1]*2]*k <= x <= [[1]*2]*k
 
-[0]*2 <= x[0] <= [0]*2
+[a]*2 == x[0]
 
 for i in range(0,k-1):
-    Implies(y[i] > [0],  x[i]+0.5 >= x[i+1] >= x[i])
+    Implies(y[i] > [0], x[i]+0.5 >= x[i+1] >= x[i])
     Implies(y[i] <= [0], x[i]-0.5 <= x[i+1] <= x[i])
 
-# Exp
+@Exp
 y >= [[-2]]*k
 ```
 Such DRLP text describe an Environment and an Agent:  
-1. State boundary 𝑆: Each input value is within $[−1,1]$  
-2. Initial state 𝐼: Each input value is $0$  
+Becouse of Initial state 𝐼 consists of two situtions in fact, such DRLP describes two concrete properties.
+1. State boundary S: Each input value is within $[−1,1]$  
+2. Initial state 𝐼: Each input value is $0$ or Each input value is $1$
 3. State transition 𝑇: Each input value of the next state increases by at most $0.5$ when output is greater than $0$, and each input value of the next state decreases by at most $0.5$ when output is not greater than $0$
 4. Other constraints 𝐶: None
-5. Property 𝑄: Output is always not less than $-2$ 
+5. Post-condition 𝑄: Output is always not less than $-2$ 
 
 ### Defination
 

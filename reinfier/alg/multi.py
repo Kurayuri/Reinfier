@@ -51,7 +51,7 @@ def verify_linear(network: NN, property: DRLP, verifier: str = None, k_max: int 
 
     ans = []
     for property_pq in property_pqs:
-        k, result = verify(network, property_pq, verifier=verifier, k_max=k_max, k_min=k_min)
+        result, k, __ = verify(network, property_pq, verifier=verifier, k_max=k_max, k_min=k_min)
 
         ans.append((property_pq, k, result))
 
@@ -72,19 +72,19 @@ def search_boundary(network: NN, property: DRLP, verifier: str = None, k_max: in
     value = upper
     property_vpq = DRLP(property).overwrite(f"{variable}={value}")
     property_pq = drlp.parse_v(property_vpq)[0]
-    k, result_upper = verify(network, property_pq, verifier=verifier, k_max=k_max, k_min=k_min)
+    result_upper, k, __ = verify(network, property_pq, verifier=verifier, k_max=k_max, k_min=k_min)
 
     value = lower
     property_vpq = DRLP(property).overwrite(f"{variable}={value}")
     property_pq = drlp.parse_v(property_vpq)[0]
-    k, result_lower = verify(network, property_pq, verifier=verifier, k_max=k_max, k_min=k_min)
+    result_lower, k, __ = verify(network, property_pq, verifier=verifier, k_max=k_max, k_min=k_min)
 
     util.log(f"## Result:\nUpper@{upper}\t: {result_upper}\nLower @{lower}\t: {result_lower}\n", level=CONSTANT.WARNING)
     while upper - lower > accuracy:
         value = (upper + lower) / 2
         property_vpq = DRLP(property).overwrite(f"{variable}={value}")
         property_pq = drlp.parse_v(property_vpq)[0]
-        k, result = verify(network, property_pq, verifier=verifier, k_max=k_max, k_min=k_min)
+        result, k, __ = verify(network, property_pq, verifier=verifier, k_max=k_max, k_min=k_min)
 
         if result == result_lower:
             lower = value
@@ -110,7 +110,7 @@ def verify_cubic(network: NN, property: DRLP, verifier: str = None, k_max: int =
         coordinate = get_coordinate(dims, i)
         property_pq = property_pqs[i]
 
-        k, result = verify(network, property_pq, verifier=verifier, k_max=k_max, k_min=k_min)
+        result, k, __ = verify(network, property_pq, verifier=verifier, k_max=k_max, k_min=k_min)
 
         ans.append((property_pq, k, result))
 
