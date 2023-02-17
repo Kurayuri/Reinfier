@@ -74,20 +74,24 @@ class DRLPTransformer(ast.NodeTransformer):
 
 class DRLPTransformer_Concretize(DRLPTransformer):
     '''
-    Concretize all variables
+    Concretize all variables, list(Subscript),, BinOp
     All variables are replaced by given dict "kwargs"
     e.g.
         kwargs = {a=1,b=[2],c=3}
         a -> 1
         b[0] -> 2
         [c][0] -> 3
+        a*b[0] -> 2
     '''
+    SUBSCRIPT = 0b01
+    BINOP = 0b10
 
-    def __init__(self, kwargs: dict = {}):
+    def __init__(self, kwargs: dict = {}, flag: int = SUBSCRIPT | BINOP):
         super().__init__()
         if kwargs is None:
             self.kwargs = {}
         self.kwargs = kwargs
+        self.flag = flag
 
     def visit_Name(self, node: ast.Name):
         if node.id in self.kwargs.keys():
@@ -98,8 +102,18 @@ class DRLPTransformer_Concretize(DRLPTransformer):
 
     def visit_Subscript(self, node: ast.Subscript):
         node = self.generic_visit(node)
-        if isinstance(node.value, ast.Constant) or isinstance(node.value, ast.List):
-            __, node = self.calculate(node)
+        if self.flag & self.SUBSCRIPT:
+            if isinstance(node.value, ast.Constant) or isinstance(node.value, ast.List):
+                __, node = self.calculate(node)
+        return node
+
+    def visit_BinOp(self, node: ast.BinOp):
+        node = self.generic_visit(node)
+        if self.flag & self.BINOP:
+            try:
+                __, node = self.calculate(node)
+            except BaseException:
+                pass
         return node
 
 
@@ -110,11 +124,15 @@ class DRLPTransformer_Init(DRLPTransformer):
     3. Calculate expression
     4. Unroll For
     5. Process With
+    6. Replace Variables
     '''
 
-    def __init__(self, depth):
+    def __init__(self, depth, kwargs: dict = {}):
         super().__init__()
         self.depth = depth
+        if kwargs is None:
+            self.kwargs = {}
+        self.kwargs = kwargs
 
     def visit_Assign(self, node: ast.Assign):
         '''Read input_size and output_size'''
@@ -238,6 +256,10 @@ class DRLPTransformer_Init(DRLPTransformer):
         if node.id in self.iter_ids:
             return ast.Constant(
                 value=self.iter_vals[node.id]
+            )
+        if node.id in self.kwargs.keys():
+            return ast.Constant(
+                value=self.kwargs[node.id]
             )
         return node
 

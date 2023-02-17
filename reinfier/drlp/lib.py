@@ -148,7 +148,7 @@ def transform(transformer: DRLPTransformer, ast_roots):
 
 
 def transform_pipeline(ast_roots, depth: int, kwargs: dict, input_size: int = None, output_size: int = None):
-    transformer_init = DRLPTransformer_Init(depth)
+    transformer_init = DRLPTransformer_Init(depth, kwargs)
     for ast_root in ast_roots:
         ast_root = transformer_init.visit(ast_root)
 

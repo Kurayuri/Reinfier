@@ -76,6 +76,7 @@ def boot_dnnv(network: NN, property: DNNP, verifier: str,
     if violation is None:
         violation_path = util.lib.get_savepath([network_path, property_path], None, "npy")
 
+    verifier = verifier.lower()
     if verifier not in CONSTANT.VERIFIERS:
         raise AssertionError(f"Unsupported verifier: {verifier}")
 
