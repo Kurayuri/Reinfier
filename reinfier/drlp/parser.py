@@ -116,11 +116,6 @@ def parse_drlps(property: DRLP, depth: int, to_induct: bool = False, to_filter_u
     return dnnps
 
 
-def parse_drlps_induction(property: str, depth: int, to_filter_unused_variables: bool = True) -> List[DNNP]:
-    '''Parse DRLP VPQ for k-induction'''
-    return parse_drlps(property, depth, True, to_filter_unused_variables)
-
-
 def parse_drlps_v(property: DRLP, to_filter_unused_variables: bool = True) -> List[DRLP]:
     '''Parse DRLP V'''
     kwargss = get_product(get_variables(property))
@@ -137,7 +132,7 @@ def parse_drlps_v(property: DRLP, to_filter_unused_variables: bool = True) -> Li
 
         drlp_pqi = make_drlp(ast_root_p, ast_root_q)
         util.log("## DRLP:\n", drlp_pqi)
-        property_pqs.append(DRLP(drlp_pqi, kwargs))
+        property_pqs.append(DRLP(drlp_pqi, kwargs, filename=filename))
 
     return property_pqs
 
@@ -149,10 +144,13 @@ def parse_drlp_get_constraint(property: DRLP) -> DRLP:
     drlp_v, drlp_pq = split_drlp_vpq(drlp_vpq)
     drlp_p, drlp_q = split_drlp_pq(drlp_pq)
 
+    varibles_v = exec_drlp_v(drlp_v)
+    kwargs = get_product(varibles_v)[0]
+
     ast_root_p = ast.parse(drlp_p)
     ast_root_q = ast.parse(drlp_q)
 
-    transformer, (ast_root_p, ast_root_q) = transform(DRLPTransformer_Init(1), (ast_root_p, ast_root_q))
+    transformer, (ast_root_p, ast_root_q) = transform(DRLPTransformer_Init(1, kwargs=kwargs), (ast_root_p, ast_root_q))
     input_size = transformer.input_size
     output_size = transformer.output_size
 
@@ -160,7 +158,7 @@ def parse_drlp_get_constraint(property: DRLP) -> DRLP:
     __, (ast_root_p, ast_root_q) = transform(DRLPTransformer_RSC(), (ast_root_p, ast_root_q))
 
     drlp_pqi = make_drlp(ast_root_p, ast_root_q)
-    return DRLP(drlp_pqi)
+    return DRLP(drlp_pqi, filename=filename)
 
 
 def parse_constaint_to_code(property: DRLP) -> str:

@@ -1,5 +1,4 @@
 from .error import *
-import astor
 import copy
 import ast
 import sys
@@ -61,6 +60,18 @@ class DRLPTransformer(ast.NodeTransformer):
                 return self.is_dim_n_List(node.elts[0], n - 1)
         return False
 
+    def is_dim_n_Subscrpit(self, node, n: int):
+        if isinstance(node, ast.Subscript):
+            if sys.version_info >= (3, 8):
+                if n == 1:
+                    if isinstance(node.value, ast.Name) and isinstance(node.slice.value, ast.Constant):
+                        return True
+                    else:
+                        return False
+                if isinstance(node.value, ast.Subscript):
+                    return self.is_dim_n_Subscrpit(node.value, n - 1)
+        return False
+
     def is_Constant(self, node):
         if (isinstance(node, ast.Constant) or
                 (isinstance(node, ast.UnaryOp) and isinstance(node.operand, ast.Constant))):
@@ -104,7 +115,10 @@ class DRLPTransformer_Concretize(DRLPTransformer):
         node = self.generic_visit(node)
         if self.flag & self.SUBSCRIPT:
             if isinstance(node.value, ast.Constant) or isinstance(node.value, ast.List):
-                __, node = self.calculate(node)
+                try:
+                    __, node = self.calculate(node)
+                except BaseException:
+                    pass
         return node
 
     def visit_BinOp(self, node: ast.BinOp):
@@ -582,14 +596,21 @@ class DRLPTransformer_RIC(DRLPTransformer):
             init_element = None
             for element in elements:
                 if isinstance(element, ast.Subscript):
-                    if element.value.id == self.INPUT_ID and element.slice.value.value == 0:
-                        init_element = element
-
+                    if self.is_dim_n_Subscrpit(element, 1):
+                        if element.value.id == self.INPUT_ID and element.slice.value.value == 0:
+                            init_element = element
+                    elif self.is_dim_n_Subscrpit(element, 2):
+                        if element.value.value.id == self.INPUT_ID and element.value.slice.value.value == 0:
+                            init_element = element
             is_init = True
             if init_element is not None:
                 for element in elements:
                     if element is not init_element:
-                        if isinstance(element, ast.List):
+                        try:
+                            __,elementi = self.calculate(element)
+                        except BaseException:
+                            elementi = element
+                        if isinstance(elementi, ast.List) or isinstance(elementi, ast.Constant):
                             pass
                         else:
                             is_init = False

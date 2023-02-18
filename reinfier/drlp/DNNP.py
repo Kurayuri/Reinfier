@@ -24,7 +24,7 @@ class DNNP:
             raise BaseException
 
     def __str__(self):
-        return f"{self.path}\n{self.obj}"
+        return f"{self.obj}"
     
     def __repr__(self):
         return self.path
