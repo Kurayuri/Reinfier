@@ -11,24 +11,6 @@ VIOLATED_ID = "violated"
 IS_VIOLATED_ID = "is_violated"
 
 
-src = '''
-a=[1,2]
-@Pre
-y_size=1
-
-[[-1]*2]*k <= x <= [[a]*2]*k
-
-[0]*2 <= x[0] <= [0]*2
-
-for i in range(0,k):
-    Implies(y[i] > [1],  x[i]+0.5 >= x[i+1] >= x[i])
-    Implies(y[i] <= [1], x[i]-0.5 <= x[i+1] <= x[i])
-
-@Exp
-y >= [[0]]*k
-'''
-
-
 def parse_drlp(property: DRLP, depth: int, kwgs: dict = {}) -> DNNP:
     '''Parse DRLP PQ'''
     if isinstance(property, DNNP):
@@ -130,7 +112,7 @@ def parse_drlps_v(property: DRLP, to_filter_unused_variables: bool = True) -> Li
         ast_root_q = ast.parse(drlp_q)
         __, (ast_root_p, ast_root_q) = transform(DRLPTransformer_Concretize(kwargs=kwargs), (ast_root_p, ast_root_q))
 
-        drlp_pqi = make_drlp(ast_root_p, ast_root_q)
+        drlp_pqi = make_pq(ast_root_p, ast_root_q)
         util.log("## DRLP:\n", drlp_pqi)
         property_pqs.append(DRLP(drlp_pqi, kwargs, filename=filename))
 
@@ -157,7 +139,7 @@ def parse_drlp_get_constraint(property: DRLP) -> DRLP:
     __, (ast_root_p, ast_root_q) = transform(DRLPTransformer_RIC(input_size, output_size), (ast_root_p, ast_root_q))
     __, (ast_root_p, ast_root_q) = transform(DRLPTransformer_RSC(), (ast_root_p, ast_root_q))
 
-    drlp_pqi = make_drlp(ast_root_p, ast_root_q)
+    drlp_pqi = make_pq(ast_root_p, ast_root_q)
     return DRLP(drlp_pqi, filename=filename)
 
 

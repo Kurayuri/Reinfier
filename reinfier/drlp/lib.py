@@ -123,12 +123,19 @@ def save_dnnp(dnnp_root, filename, depth):
     return DNNP(path)
 
 
-def make_drlp(ast_root_p, ast_root_q):
+def make_pq(ast_root_p, ast_root_q):
     ast_root_p = ast.fix_missing_locations(ast_root_p)
     ast_root_q = ast.fix_missing_locations(ast_root_q)
 
+    expr_true = ast.Expr(value=ast.Constant(value=True, kind=None))
+
+    for ast_root in [ast_root_p, ast_root_q]:
+        if len(ast_root.body) == 0:
+            ast_root.body.append(expr_true)
+
     drlp_pi = astor.to_source(ast_root_p)
     drlp_qi = astor.to_source(ast_root_q)
+
     drlp_pqi = "\n".join((drlp_pi, DRLPTransformer.EXPECTATION_DELIMITER, drlp_qi))
 
     return drlp_pqi

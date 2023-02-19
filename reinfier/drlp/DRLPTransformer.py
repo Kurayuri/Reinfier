@@ -1,8 +1,8 @@
 from .error import *
+import astor
 import copy
 import ast
 import sys
-
 
 class DRLPTransformer(ast.NodeTransformer):
     INPUT_SIZE_ID = "x_size"
@@ -614,7 +614,6 @@ class DRLPTransformer_RIC(DRLPTransformer):
                             pass
                         else:
                             is_init = False
-
                 if is_init == True:
                     return None
         return node
