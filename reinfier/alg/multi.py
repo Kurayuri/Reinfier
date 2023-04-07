@@ -60,44 +60,7 @@ def verify_linear(network: NN, property: DRLP, verifier: str = None, k_max: int 
     return ans
 
 
-def search_boundary(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1, kwargs: dict = {}, accuracy: float = 1e-2) -> List[Tuple[DRLP, int, bool]]:
-    variable, boundary = list(kwargs.items())[0]
-    lower = boundary[0]
-    upper = boundary[1]
-    property = property.obj
-
-    util.log_prompt(3)
-    util.log("########## Init ##########\n", level=CONSTANT.WARNING)
-
-    value = upper
-    property_vpq = DRLP(property).overwrite(f"{variable}={value}")
-    property_pq = drlp.parse_v(property_vpq)[0]
-    result_upper, k, __ = verify(network, property_pq, verifier=verifier, k_max=k_max, k_min=k_min)
-
-    value = lower
-    property_vpq = DRLP(property).overwrite(f"{variable}={value}")
-    property_pq = drlp.parse_v(property_vpq)[0]
-    result_lower, k, __ = verify(network, property_pq, verifier=verifier, k_max=k_max, k_min=k_min)
-
-    util.log(f"## Result:\nUpper@{upper}\t: {result_upper}\nLower @{lower}\t: {result_lower}\n", level=CONSTANT.WARNING)
-    while upper - lower > accuracy:
-        value = (upper + lower) / 2
-        property_vpq = DRLP(property).overwrite(f"{variable}={value}")
-        property_pq = drlp.parse_v(property_vpq)[0]
-        result, k, __ = verify(network, property_pq, verifier=verifier, k_max=k_max, k_min=k_min)
-
-        if result == result_lower:
-            lower = value
-        elif result == result_upper:
-            upper = value
-
-        util.log_prompt(3)
-        util.log("########## Step ##########\n", level=CONSTANT.WARNING)
-        util.log(f"## Result:\nMid @ {value}\t: {result}\n", level=CONSTANT.WARNING)
-    return value
-
-
-def verify_cubic(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1) -> List[Tuple[DRLP, int, bool]]:
+def verify_hypercubic(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1) -> List[Tuple[DRLP, int, bool]]:
     property_pqs = drlp.parse_v(property)
     variables = drlp.parser.get_variables(property)
     dims = get_dims(variables)
@@ -124,3 +87,72 @@ def verify_cubic(network: NN, property: DRLP, verifier: str = None, k_max: int =
             i += dims[-1] - coordinate[-1]
 
     return ans
+
+
+def search_boundary_dichotomy(network: NN, property: DRLP, kwargs: dict, accuracy: float = 1e-2, verifier: str = None, k_max: int = 10, k_min: int = 1) -> float:
+    variable, bounds = list(kwargs.items())[0]
+    lower = bounds[0]
+    upper = bounds[1]
+    property = property.obj
+
+    util.log_prompt(3)
+    util.log("########## Init ##########\n", level=CONSTANT.WARNING)
+
+    value = upper
+    property_vpq = DRLP(property).append(f"{variable}={value}")
+    property_pq = drlp.parse_v(property_vpq)[0]
+    result_upper, k, __ = verify(network, property_pq, verifier=verifier, k_max=k_max, k_min=k_min)
+
+    value = lower
+    property_vpq = DRLP(property).append(f"{variable}={value}")
+    property_pq = drlp.parse_v(property_vpq)[0]
+    result_lower, k, __ = verify(network, property_pq, verifier=verifier, k_max=k_max, k_min=k_min)
+
+    util.log(f"## Result:\nUpper@{upper}\t: {result_upper}\nLower @{lower}\t: {result_lower}\n", level=CONSTANT.WARNING)
+    while upper - lower > accuracy:
+        value = (upper + lower) / 2
+        property_vpq = DRLP(property).append(f"{variable}={value}")
+        property_pq = drlp.parse_v(property_vpq)[0]
+        result, k, __ = verify(network, property_pq, verifier=verifier, k_max=k_max, k_min=k_min)
+
+        if result == result_lower:
+            lower = value
+        elif result == result_upper:
+            upper = value
+
+        util.log_prompt(3)
+        util.log("########## Step ##########\n", level=CONSTANT.WARNING)
+        util.log(f"## Result:\nMid @ {value}\t: {result}\n", level=CONSTANT.WARNING)
+    return value
+
+
+def search_boundary_iteration_dichotomy(network: NN, property: DRLP, kwargs: dict, step: float = 0.3,
+                                        accuracy: float = 1e-2, verifier: str = None, k_max: int = 10, k_min: int = 1) -> float:
+    variable, bounds = list(kwargs.items())[0]
+    lower = bounds[0]
+    upper = bounds[1]
+    property = property.obj
+
+    util.log_prompt(3)
+    util.log("########## Init ##########\n", level=CONSTANT.WARNING)
+
+    value = lower
+    property_vpq = DRLP(property).append(f"{variable}={value}")
+    property_pq = drlp.parse_v(property_vpq)[0]
+    result, k, __ = verify(network, property_pq, verifier=verifier, k_max=k_max, k_min=k_min)
+
+    while result and value <= upper:
+        value = value * (1 + step)
+        property_vpq = DRLP(property).append(f"{variable}={value}")
+        property_pq = drlp.parse_v(property_vpq)[0]
+        result, k, __ = verify(network, property_pq, verifier=verifier, k_max=k_max, k_min=k_min)
+
+        util.log_prompt(3)
+        util.log("########## Step ##########\n", level=CONSTANT.WARNING)
+        util.log(f"## Result:\nUpper @ {value}\t: {result}\n", level=CONSTANT.WARNING)
+
+    if value > upper:
+        return value
+
+    value = search_boundary_dichotomy(network, property, {variable: [lower, value]}, accuracy, verifier, k_max, k_min)
+    return value
