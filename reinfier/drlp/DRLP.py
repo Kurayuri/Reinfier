@@ -2,7 +2,7 @@ from .DRLPTransformer import DRLPTransformer
 
 
 class DRLP:
-    def __init__(self, arg, kwargs=None, filename="tmp.drlp"):
+    def __init__(self, arg, kwargs: dict = None, filename="tmp.drlp"):
         self.path = None
         self.obj = None
         self.kwargs = kwargs
@@ -15,7 +15,9 @@ class DRLP:
             except Exception:
                 self.path = filename
                 self.obj = arg
-
+        elif isinstance(arg, DRLP):
+            self.path = arg.path
+            self.obj = arg.obj
         else:
             raise Exception("Invalid type to initialize DRLP object")
 
@@ -47,6 +49,17 @@ class DRLP:
         drlp_v, drlp_pq = lib.split_drlp_vpq(self.obj)
         drlp_v = code
         self.obj = "\n".join((drlp_v, DRLPTransformer.PRECONDITION_DELIMITER, drlp_pq))
+        return self
+
+    def set_value(self, variable: str, value):
+        self = self.append(f"{variable}={value}")
+        return self
+
+    def set_values(self, kwargs: dict):
+        code = ""
+        for k, v in kwargs.items():
+            code += f"{k}={v}\n"
+        self = self.append(code)
         return self
 
     def __str__(self):

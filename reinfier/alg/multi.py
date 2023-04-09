@@ -5,7 +5,7 @@ from ..import drlp
 from ..import CONSTANT
 from .single import *
 from .lib import *
-from typing import Tuple, List
+from typing import Tuple, List, Union
 
 
 class Variable:
@@ -156,3 +156,34 @@ def search_boundary_iteration_dichotomy(network: NN, property: DRLP, kwargs: dic
 
     value = search_boundary_dichotomy(network, property, {variable: [lower, value]}, accuracy, verifier, k_max, k_min)
     return value
+
+
+def search_boundary_hypercubic(network: NN, property: DRLP, kwargs: dict, accuracy: Union[float, dict] = 1e-2, verifier: str = None, k_max: int = 10, k_min: int = 1):
+    variables = list(kwargs.keys())
+
+    values = {}
+    for variable in list(kwargs.keys())[:-1]:
+        values[variable] = kwargs[variable][0]
+
+    results = []
+    property = property.obj
+
+    def rec(values, depth):
+        variable = variables[depth]
+        if depth == len(variables) - 1:
+            _property = DRLP(property).set_values(values)
+            value = search_boundary_dichotomy(network, _property, {variable: kwargs[variable]}, accuracy, verifier, k_max, k_min)
+            vals = values.copy()
+            vals[variable] = value
+            results.append(DRLP(property, vals).set_values(vals))
+        else:
+            while values[variable] <= kwargs[variable][1]:
+                rec(values.copy(), depth + 1)
+                if isinstance(accuracy, dict):
+                    values[variable] += accuracy[variable]
+                else:
+                    values[variable] += accuracy
+
+    rec(values, 0)
+
+    return results

@@ -11,7 +11,9 @@ class DNNP:
             except Exception:
                 self.path = filename
                 self.obj = arg
-
+        elif isinstance(arg, DNNP):
+            self.path = arg.path
+            self.obj = arg.obj
         else:
             raise Exception("Invalid type to initialize DNNP object")
 
