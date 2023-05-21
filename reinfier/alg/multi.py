@@ -303,8 +303,10 @@ def search_break_points(network: NN, property: DRLP, kwargs: dict, default_preci
                         break_points.append((_prop, prev_ans))
                 elif method == "binary":
                     break_points.append(init_lb_ans_set)
-                    ans = (not init_lb_ans_set[1][0], ans[1], ans[2])
-                    break_points.append((_prop, ans))
+
+                    if ans[0:2] != init_lb_ans_set[1][0:2] or (ans[2] != init_lb_ans_set[1][2]).any():
+                        ans = (not init_lb_ans_set[1][0], ans[1], ans[2])
+                        break_points.append((_prop, ans))
                     break_points.append(init_ub_ans_set)
                 break
 
