@@ -110,8 +110,7 @@ def unroll_nn(network: NN, depth: int, branchable=False) -> NN:
             # concat_name="Concat"
             # concat_names=[]
 
-
-            #%% Add Split node (Split)
+            # %% Add Split node (Split)
             if split_supported:
                 split_names = [convert_name("Split", step) for step in range(depth)]
                 true_split_node = onnx.helper.make_node(
@@ -126,8 +125,8 @@ def unroll_nn(network: NN, depth: int, branchable=False) -> NN:
 
             for step in range(depth):
                 split_name = convert_name("Split", step)
-                
-                #%% Add Split node (Matmul)
+
+                # %% Add Split node (Matmul)
                 if not split_supported:
                     start_index = step * graph_input_length
                     indices_name = convert_name("SplitIndeices", step)
@@ -266,10 +265,12 @@ def unroll_nn(network: NN, depth: int, branchable=False) -> NN:
     model.opset_import[0].version = 9
     util.log(onnx.helper.printable_graph(model.graph))
     # print(graph.input)
+    error = False
     try:
         onnx.checker.check_model(model)
     except onnx.checker.ValidationError as e:
         util.log('Expanded model is invalid: %s' % e, level=CONSTANT.CRITICAL)
+        error = True
     else:
         util.log('Expanded model is valid!', level=CONSTANT.INFO)
 
@@ -277,9 +278,11 @@ def unroll_nn(network: NN, depth: int, branchable=False) -> NN:
     util.log(path)
     onnx.save(model, path)
 
-    onnx_runner.run_onnx(origin_path, np.array(
-        [[1.0] * graph_input_length], dtype=np.float32))
-    onnx_runner.run_onnx(path, np.array(
-        [[1.0] * graph_input_length * depth], dtype=np.float32))
-
-    return NN(path)
+    try:
+        onnx_runner.run_onnx(origin_path, np.array(
+            [[1.0] * graph_input_length], dtype=np.float32))
+        onnx_runner.run_onnx(path, np.array(
+            [[1.0] * graph_input_length * depth], dtype=np.float32))
+        return NN(path)
+    except BaseException:
+        return NN(None)

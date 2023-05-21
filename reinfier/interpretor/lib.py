@@ -26,11 +26,13 @@ def analyze_break_points(break_points: List[Tuple[DRLP, Tuple[int, bool, numpy.n
     curr_break_points = []
     inline_break_lines.append(curr_break_lines)
     inline_break_points.append(curr_break_points)
+
+
     for i in range(1, len(break_points)):
 
         if list(break_points[i - 1][0].kwargs.items())[:-1] == list(break_points[i][0].kwargs.items())[:-1]:
-            if break_points[i - 1][1][0] == break_points[i][1][0]:
-                prt(break_points[i - 1], break_points[i], curr_break_lines, curr_break_points)
+            # if break_points[i - 1][1][0] == break_points[i][1][0]:
+            prt(break_points[i - 1], break_points[i], curr_break_lines, curr_break_points)
         else:
             print("\nNew line:")
 

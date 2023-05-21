@@ -76,6 +76,10 @@ def boot_dnnv(network: NN, property: DNNP, verifier: str,
     if violation is None:
         violation_path = util.lib.get_savepath([network_path, property_path], None, "npy")
 
+    if (network.obj is None and network.path is None) or \
+            (property.obj is None and property.path is None):
+        return (False, None, float('inf'), None)
+
     verifier = verifier.lower()
     if verifier not in CONSTANT.VERIFIERS:
         raise AssertionError(f"Unsupported verifier: {verifier}")
@@ -94,7 +98,7 @@ def boot_dnnv(network: NN, property: DNNP, verifier: str,
 
     while True:
         util.log_prompt(1)
-        util.log("Verifying...", level=CONSTANT.INFO)
+        util.log("Single DNN Query Verifying...", level=CONSTANT.INFO)
         util.log((" ".join(cmd)), level=CONSTANT.INFO)
 
         # %% Call DNNV from fucntion
@@ -160,16 +164,18 @@ def boot_dnnv(network: NN, property: DNNP, verifier: str,
         log_dnnv_output(dnnv_stdout, dnnv_stderr, ans_gotten)
 
         util.log(("## Ans:"), level=CONSTANT.WARNING)
-        util.log((runable, result, time), level=CONSTANT.WARNING)
+        util.log(("Runable:", runable, "   Result:", result, "   Time:", time), level=CONSTANT.WARNING)
 
         violation = None
         if runable == True:
             if result == False:
                 violation = np.load(violation_path)
-                util.log(("SAT"), level=CONSTANT.WARNING)
+                util.log(("False"), level=CONSTANT.WARNING)
+                # util.log(("SAT"), level=CONSTANT.WARNING)
                 nn.onnx_runner.run_onnx(network=network_path, input=violation)
             else:
-                util.log(("UNSAT"), level=CONSTANT.WARNING)
+                util.log(("True"), level=CONSTANT.WARNING)
+                # util.log(("UNSAT"), level=CONSTANT.WARNING)
         else:
             util.log(("Error"), level=CONSTANT.WARNING)
         break

@@ -224,7 +224,7 @@ def search_break_points(network: NN, property: DRLP, kwargs: dict, default_preci
 
     def call_verify(_prop: DRLP):
         util.log_prompt(3)
-        util.log("DRL Verifying...", level=CONSTANT.ERROR)
+        util.log("*** Single DRL Query Verifying...", level=CONSTANT.ERROR)
         util.log("Kwargs:", _prop.kwargs, level=CONSTANT.ERROR)
         util.log("\n\n", level=CONSTANT.ERROR)
 
@@ -284,11 +284,13 @@ def search_break_points(network: NN, property: DRLP, kwargs: dict, default_preci
                 else:
                     ans = call_verify(_prop)
 
-                if prev_ans is None or ans[0] != prev_ans[0]:
-                    prev_ans = ans
-                    break_points.append((_prop, ans))
-                    if skip:
-                        break
+                if method == "linear":
+                    if prev_ans is None or ans[0] != prev_ans[0]:
+                        prev_ans = ans
+                        break_points.append((_prop, ans))
+                        if skip:
+                            break
+
             else:
                 search(_prop, _kwargs)
 
@@ -300,6 +302,9 @@ def search_break_points(network: NN, property: DRLP, kwargs: dict, default_preci
                             prev_ans != break_points[-1]:
                         break_points.append((_prop, prev_ans))
                 elif method == "binary":
+                    break_points.append(init_lb_ans_set)
+                    ans = (not init_lb_ans_set[1][0], ans[1], ans[2])
+                    break_points.append((_prop, ans))
                     break_points.append(init_ub_ans_set)
                 break
 

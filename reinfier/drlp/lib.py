@@ -1,4 +1,5 @@
 from ..import CONSTANT
+from ..import Setting
 from ..import util
 from .DRLPTransformer import *
 from .error import *
@@ -42,11 +43,13 @@ def split_drlp_vpq(drlp_vpq):
 
 
 def format_dnnp(code: str):
-    with open("./style.style_config", 'w') as f:
-        f.write(yamf_style)
+    path = f"./{Setting.TmpPath}/style.style_config"
+    if not os.path.exists(path):
+        with open(path, 'w') as f:
+            f.write(yamf_style)
     code, changed = yapf.yapflib.yapf_api.FormatCode(
-        code, style_config="./style.style_config")
-    os.remove("./style.style_config")
+        code, style_config=path)
+    # os.remove("./style.style_config")
     util.log("\n## DNNP:")
     util.log(code)
     return code

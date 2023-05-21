@@ -16,6 +16,9 @@ class DRLP:
             except Exception:
                 self.path = filename
                 self.obj = arg
+            
+            # if DRLPTransformer.PRECONDITION_DELIMITER not in self.obj:
+            #     raise Exception('Invalid type to initialize DRLP object, DRLP cannot be splitted by EXPECTATION_DELIMITER "@Exp"')
         elif isinstance(arg, DRLP):
             self.path = arg.path
             self.obj = arg.obj

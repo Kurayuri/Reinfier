@@ -14,6 +14,8 @@ class NN:
         elif isinstance(arg, NN):
             self.path = arg.path
             self.obj = onnx.load(self.path)
+        elif arg is None:
+            pass
         else:
             raise Exception("Invalid type to initialize NN object")
 
