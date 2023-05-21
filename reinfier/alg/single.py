@@ -6,9 +6,10 @@ from ..import drlp
 from .import lib
 from .import selector
 from typing import Tuple
+import numpy
 
 
-def bmc(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1) -> Tuple[int, bool]:
+def bmc(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1) -> Tuple[int, bool, numpy.ndarray]:
     lib.log_call(network, property, "bmc")
 
     if verifier is None:
@@ -30,7 +31,7 @@ def bmc(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_mi
     return None, k_max, violation
 
 
-def k_induction(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1) -> Tuple[int, bool]:
+def k_induction(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1) -> Tuple[int, bool,numpy.ndarray]:
     lib.log_call(network, property, "k_induction")
 
     if verifier is None:
@@ -65,7 +66,7 @@ def k_induction(network: NN, property: DRLP, verifier: str = None, k_max: int = 
     return None, k_max, violation
 
 
-def verify(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1, to_induct=True) -> Tuple[int, bool]:
+def verify(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1, to_induct=True) -> Tuple[int, bool, numpy.ndarray]:
     if to_induct:
         return k_induction(network, property, verifier=verifier, k_max=k_max, k_min=k_min)
     else:

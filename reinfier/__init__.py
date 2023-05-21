@@ -1,6 +1,6 @@
 """Reinfier - A verification framework for deep reinforcement learning"""
 
-__version__ = "0.3.9"
+__version__ = "0.3.10"
 from .reintrainer.Reintrainer import Reintrainer
 from .drlp.DNNP import DNNP
 from .drlp.DRLP import DRLP

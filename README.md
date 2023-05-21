@@ -1,8 +1,8 @@
 # Reinfier
-A universal verification framework system for deep reinforcement learning, which combines the formal verification of deep neural network with bounded model checking algorithm and k-induction algorithm to verify the properties of deep reinforcement learning or give counterexamples.  
+A general verification and interpretability framework for deep reinforcement learning, which combines the formal verification of deep neural network with bounded model checking algorithm and k-induction algorithm to verify the properties of deep reinforcement learning or give counterexamples.  
 Source code is available at [Reinfier](https://github.com/Kurayuri/Reinfier).
 ## Installation
-Reinfier is based on [DNNV](https://github.com/dlshriver/dnnv), which requrires verifiers of DNN ([Reluplex](https://github.com/guykatzz/ReluplexCav2017), [planet](https://github.com/progirep/planet), [MIPVerify.jl](https://github.com/vtjeng/MIPVerify.jl), [Neurify](https://github.com/tcwangshiqi-columbia/Neurify), [ERAN](https://github.com/eth-sri/eran), [BaB](https://github.com/oval-group/PLNN-verification), [marabou](https://github.com/NeuralNetworkVerification/Marabou), [nnenum](https://github.com/stanleybak/nnenum), [verinet](https://vas.doc.ic.ac.uk/software/neural/)).  
+Reinfier takes [DNNV](https://github.com/dlshriver/dnnv) as the external DNN verification framework now, which requrires verifiers of DNN ([Reluplex](https://github.com/guykatzz/ReluplexCav2017), [planet](https://github.com/progirep/planet), [MIPVerify.jl](https://github.com/vtjeng/MIPVerify.jl), [Neurify](https://github.com/tcwangshiqi-columbia/Neurify), [ERAN](https://github.com/eth-sri/eran), [BaB](https://github.com/oval-group/PLNN-verification), [marabou](https://github.com/NeuralNetworkVerification/Marabou), [nnenum](https://github.com/stanleybak/nnenum), [verinet](https://vas.doc.ic.ac.uk/software/neural/)).  
 
 For DRL verification, Reinfier now supports Marabou, Neurify, nnenum and Planet well. For DNN verifcation, Reinfier supports ones as same as DNNV.
 
@@ -45,7 +45,7 @@ print(rf.verify(network, property))
 ```
 The result should be:
 ```python
-(False, 2, <numpy.ndarray>)
+(False, 2, an instance of <numpy.ndarray>)
 ```
 which means the property is False (SAT, Invalid) with verification depth is 2, and a violation (counterexample) is given.
 

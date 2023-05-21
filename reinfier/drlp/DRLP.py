@@ -1,11 +1,12 @@
 from .DRLPTransformer import DRLPTransformer
+from copy import deepcopy
 
 
 class DRLP:
-    def __init__(self, arg, kwargs: dict = None, filename="tmp.drlp"):
+    def __init__(self, arg, kwargs: dict = {}, filename="tmp.drlp"):
         self.path = None
         self.obj = None
-        self.kwargs = kwargs
+        self.kwargs = deepcopy(kwargs)
 
         if isinstance(arg, str):
             try:
@@ -51,15 +52,17 @@ class DRLP:
         self.obj = "\n".join((drlp_v, DRLPTransformer.PRECONDITION_DELIMITER, drlp_pq))
         return self
 
-    def set_value(self, variable: str, value):
+    def set_kwarg(self, variable: str, value):
         self = self.append(f"{variable}={value}")
+        self.kwargs[variable] = value
         return self
 
-    def set_values(self, kwargs: dict):
+    def set_kwargs(self, kwargs: dict):
         code = ""
         for k, v in kwargs.items():
             code += f"{k}={v}\n"
         self = self.append(code)
+        self.kwargs = {**self.kwargs, **kwargs}
         return self
 
     def __str__(self):

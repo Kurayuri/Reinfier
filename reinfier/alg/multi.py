@@ -6,6 +6,7 @@ from ..import CONSTANT
 from .single import *
 from .lib import *
 from typing import Tuple, List, Union
+from copy import deepcopy
 
 
 class Variable:
@@ -168,7 +169,7 @@ def search_boundary_hypercubic(network: NN, property: DRLP, kwargs: dict, accura
     results = []
     property = property.obj
 
-    def rec(values, depth):
+    def search(values, depth):
         variable = variables[depth]
         if depth == len(variables) - 1:
             _property = DRLP(property).set_values(values)
@@ -178,12 +179,128 @@ def search_boundary_hypercubic(network: NN, property: DRLP, kwargs: dict, accura
             results.append(DRLP(property, vals).set_values(vals))
         else:
             while values[variable] <= kwargs[variable][1]:
-                rec(values.copy(), depth + 1)
+                search(values.copy(), depth + 1)
                 if isinstance(accuracy, dict):
                     values[variable] += accuracy[variable]
                 else:
                     values[variable] += accuracy
 
-    rec(values, 0)
+    search(values, 0)
 
     return results
+
+
+# kwargs: dict
+# {var: {lb, ub, dv, prec}}
+
+
+def search_break_points(network: NN, property: DRLP, kwargs: dict, default_precise: float = 1e-2, verifier: str = None, k_max: int = 10, k_min: int = 1):
+    break_points = []
+
+    def next(lb: float, ub: float, curr: float, prec: float, method: str, lb_ans=None, ub_ans=None, curr_ans=None):
+
+        _next = None
+        if method == "linear":
+            if curr < ub:
+                _next = curr + prec
+            else:
+                _next = None
+        elif method == "binary":
+            if ub - lb > prec:
+                if lb_ans[0] != curr_ans[0]:
+                    ub = curr
+                    _next = (lb + ub) / 2
+                elif ub_ans[0] != curr_ans[0]:
+                    lb = curr
+                    _next = (lb + ub) / 2
+        elif method == "iterative":
+            if lb_ans == curr_ans:
+                _next = curr * prec
+            else:
+                ub = curr
+
+        return lb, ub, _next
+
+    def call_verify(_prop: DRLP):
+        util.log_prompt(3)
+        util.log("DRL Verifying...", level=CONSTANT.ERROR)
+        util.log("Kwargs:", _prop.kwargs, level=CONSTANT.ERROR)
+        util.log("\n\n", level=CONSTANT.ERROR)
+
+        return verify(network, _prop, verifier, k_max, k_min, True)
+
+    def concrete(_propert: DRLP, var: str, value: float):
+        left_kwargs = {k: v["default_value"] for k, v in kwargs.items() if k not in _propert.kwargs.keys() and k != var}
+        return DRLP(_propert.obj, _propert.kwargs).set_kwarg(var, value).set_kwargs(left_kwargs)
+
+    def search(_property: DRLP, _kwargs: dict):
+        if len(_kwargs) == 1:
+            util.log_prompt(4)
+            util.log("########## Search ##########", level=CONSTANT.ERROR)
+            util.log("Env  kwargs: ", _property.kwargs, level=CONSTANT.ERROR)
+            util.log("Curr kwarg:  ", _kwargs, level=CONSTANT.ERROR)
+            util.log("Known break points:  ", break_points, level=CONSTANT.ERROR)
+
+        _kwargs = deepcopy(_kwargs)
+        var = list(_kwargs.keys())[0]
+        var_v = _kwargs[var]
+        _kwargs.pop(var)
+
+        lb = var_v["lower_bound"]
+        ub = var_v.get("upper_bound", 0)
+        dv = var_v.get("default_value", 0)
+        prec = var_v.get("precise", default_precise)
+        method = var_v.get("method", "linear")
+        skip = var_v.get("skip", False)
+
+        curr = lb
+
+        ans = None
+        prev_ans = None
+        lb_ans = None
+        ub_ans = None
+
+        if method == "binary":
+            _prop = concrete(_property, var, lb)
+            lb_ans = call_verify(_prop)
+            init_lb_ans_set = (_prop, lb_ans)
+            _prop = concrete(_property, var, ub)
+            ub_ans = call_verify(_prop)
+            init_ub_ans_set = (_prop, ub_ans)
+
+        while True:
+            _prop = concrete(_property, var, curr)
+
+            if len(_kwargs) == 0:
+
+                if method == "binary":
+                    if curr == lb:
+                        ans = lb_ans
+                    elif curr == ub:
+                        ans = ub_ans
+                    else:
+                        ans = call_verify(_prop)
+                else:
+                    ans = call_verify(_prop)
+
+                if prev_ans is None or ans[0] != prev_ans[0]:
+                    prev_ans = ans
+                    break_points.append((_prop, ans))
+                    if skip:
+                        break
+            else:
+                search(_prop, _kwargs)
+
+            lb, ub, curr = next(lb, ub, curr, prec, method, lb_ans, ub_ans, ans)
+
+            if curr is None:
+                if method == "linear":
+                    if prev_ans is not None and break_points is not None and \
+                            prev_ans != break_points[-1]:
+                        break_points.append((_prop, prev_ans))
+                elif method == "binary":
+                    break_points.append(init_ub_ans_set)
+                break
+
+    search(property, kwargs)
+    return break_points
