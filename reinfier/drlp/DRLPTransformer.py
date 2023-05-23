@@ -574,6 +574,8 @@ class DRLPTransformer_RSC(DRLPTransformer):
 
     def visit_Call(self, node: ast.Call):
         node = self.generic_visit(node)
+        if isinstance(node.func, ast.Attribute):
+            return node
         if (node.func.id == self.DNNP_AND_ID or node.func.id == self.DNNP_OR_ID):
             if len(node.args) == 0:
                 return None

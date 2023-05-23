@@ -98,6 +98,11 @@ def make_dnnp(ast_root_p, ast_root_q):
             # names=[ast.alias(name='array')],
             level=0
         ),
+        ast.Import(
+            names=[ast.alias(name='numpy', asname='np')],
+            # names=[ast.alias(name='array')],
+            level=0
+        ),
         ast.ImportFrom(
             module="dnnv.properties",
             names=[ast.alias(name='*', asname=None)],

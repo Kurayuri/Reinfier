@@ -230,9 +230,11 @@ def search_break_points(network: NN, property: DRLP, kwargs: dict, default_preci
 
         return verify(network, _prop, verifier, k_max, k_min, to_induct)
 
-    def concrete(_propert: DRLP, var: str, value: float):
-        left_kwargs = {k: v["default_value"] for k, v in kwargs.items() if k not in _propert.kwargs.keys() and k != var}
-        return DRLP(_propert.obj, _propert.kwargs).set_kwarg(var, value).set_kwargs(left_kwargs)
+    def concrete(_propert: DRLP, var: str, value: float, all: bool = False):
+        if all:
+            left_kwargs = {k: v["default_value"] for k, v in kwargs.items() if k not in _propert.kwargs.keys() and k != var}
+            return DRLP(_propert.obj, _propert.kwargs).set_kwarg(var, value).set_kwargs(left_kwargs)
+        return DRLP(_propert.obj, _propert.kwargs).set_kwarg(var, value)
 
     def search(_property: DRLP, _kwargs: dict):
         if len(_kwargs) == 1:
@@ -262,10 +264,10 @@ def search_break_points(network: NN, property: DRLP, kwargs: dict, default_preci
         ub_ans = None
 
         if method == "binary":
-            _prop = concrete(_property, var, lb)
+            _prop = concrete(_property, var, lb, True)
             lb_ans = call_verify(_prop)
             init_lb_ans_set = (_prop, lb_ans)
-            _prop = concrete(_property, var, ub)
+            _prop = concrete(_property, var, ub, True)
             ub_ans = call_verify(_prop)
             init_ub_ans_set = (_prop, ub_ans)
 
