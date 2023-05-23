@@ -68,6 +68,17 @@ class DRLP:
         self.kwargs = {**self.kwargs, **kwargs}
         return self
 
+    def set_value(self, variable: str, value):
+        self = self.append(f"{variable}={value}")
+        return self
+
+    def set_values(self, kwargs: dict):
+        code = ""
+        for k, v in kwargs.items():
+            code += f"{k}={v}\n"
+        self = self.append(code)
+        return self
+
     def __str__(self):
         return f"{self.obj}"
 

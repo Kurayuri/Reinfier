@@ -512,9 +512,13 @@ class DRLPTransformer_Induction(DRLPTransformer):
             for element in elements:
                 if isinstance(element, ast.Subscript):
                     if element.value.id == self.DNNP_INPUT_ID + self.DNNP_SHAPE_OF_DIM_0:
-                        if (element.slice.lower.value == self.input_size * 0 and
-                                element.slice.upper.value == self.input_size * 1):
-                            init_element = element
+                        if isinstance(element.slice, ast.Constant):
+                            if element.slice.value < self.input_size:
+                                init_element = element
+                        elif isinstance(element.slice, ast.Slice):
+                            if (element.slice.lower.value == self.input_size * 0 and
+                                    element.slice.upper.value == self.input_size * 1):
+                                init_element = element
             is_init = True
             if init_element is not None:
                 for element in elements:

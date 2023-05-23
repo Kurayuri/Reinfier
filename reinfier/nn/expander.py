@@ -284,5 +284,6 @@ def unroll_nn(network: NN, depth: int, branchable=False) -> NN:
         onnx_runner.run_onnx(path, np.array(
             [[1.0] * graph_input_length * depth], dtype=np.float32))
         return NN(path)
-    except BaseException:
+    except Exception as e:
+        util.log(e, level=CONSTANT.WARNING)
         return NN(None)

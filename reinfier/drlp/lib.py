@@ -28,7 +28,7 @@ def split_drlp_pq(drlp_pq):
         if len(drlp_pq) != 2:
             raise Exception
     except Exception:
-        raise DRLPParsingError('Invalid DRLP format, DRLP cannot be splitted by EXPECTATION_DELIMITER "@Exp"')
+        raise DRLPParsingError(f'Invalid DRLP format, DRLP cannot be splitted by EXPECTATION_DELIMITER "@Exp"\n{drlp_pq}')
     return drlp_pq[0], drlp_pq[1]
 
 
@@ -38,7 +38,7 @@ def split_drlp_vpq(drlp_vpq):
         if len(drlp_vpq) != 2:
             drlp_vpq.insert(0, "")
     except Exception as e:
-        raise DRLPParsingError('Invalid DRLP format, DRLP cannot be splitted by PRECONDITION_DELIMITER "@Pre"')
+        raise DRLPParsingError(f'Invalid DRLP format, DRLP cannot be splitted by PRECONDITION_DELIMITER "@Pre"\n{drlp_vpq}')
     return drlp_vpq[0], drlp_vpq[1]
 
 

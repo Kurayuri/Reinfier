@@ -27,11 +27,11 @@ def bmc(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_mi
 
         if result == False:
             return False, k, violation
+    # return None, k_max, violation
+    return True, k_max, violation
 
-    return None, k_max, violation
 
-
-def k_induction(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1) -> Tuple[int, bool,numpy.ndarray]:
+def k_induction(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1) -> Tuple[int, bool, numpy.ndarray]:
     lib.log_call(network, property, "k_induction")
 
     if verifier is None:

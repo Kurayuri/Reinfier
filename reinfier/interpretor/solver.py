@@ -25,7 +25,7 @@ def answer_counterfactual_explanation(inline_break_points: List[List], dist: Uni
     min_obj = (None, None)
     for line in inline_break_points:
         for break_point in line:
-            vector = list(break_point[0].kwargs.values())
+            vector = list(break_point[2].values())
             d = 0
             if isinstance(dist, Callable):
                 d = dist(vector, [0] * len(vector))
@@ -39,13 +39,15 @@ def answer_counterfactual_explanation(inline_break_points: List[List], dist: Uni
     return min_obj[0], min_val, min_obj[1]
 
 
-def answer_sensitivity_analysis(inline_break_points: List[List], original_output, dist: Union[str, Callable] = "euclidean") -> Tuple[List[float], float, Tuple[DRLP, Tuple]]:
+def answer_sensitivity_analysis(inline_break_points: List[List], original_output=None, dist: Union[str, Callable] = "euclidean") -> Tuple[List[float], float, Tuple[DRLP, Tuple]]:
     min_val = float('inf')
     min_obj = (None, None)
 
     for line in inline_break_points:
         for break_point in line:
-            vector = list(break_point[0].kwargs.values())
+            vector = list(break_point[2].values())
+            if original_output is None:
+                original_output = [0 for i in vector]
             d = 0
             if isinstance(dist, Callable):
                 d = dist(vector, original_output)
@@ -65,7 +67,7 @@ def answer_importance_analysis(inline_break_points: List[List], dist: Union[str,
 
     for line in inline_break_points:
         for break_point in line:
-            vector = list(break_point[0].kwargs.values())
+            vector = list(break_point[2].values())
             d = 0
             if isinstance(dist, Callable):
                 d = dist(vector, [0] * len(vector))
@@ -74,6 +76,6 @@ def answer_importance_analysis(inline_break_points: List[List], dist: Union[str,
                 d = distance.pdist(matrix, dist)
             if d < min_val:
                 min_val = d
-                min_obj = vector, break_point
+                min_obj = (vector, break_point)
 
     return min_obj[0], min_val, min_obj[1]
