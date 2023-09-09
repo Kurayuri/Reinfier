@@ -30,10 +30,15 @@ class Reintrainer:
     REWARD_FUNC_PARA_VIOLATED_ID = "violated"
     REWARD_API_FILENAME = "reward_api.py"
 
-    def __init__(self, properties: List[DRLP], curriculum_chosen_func: Callable,
-                 init_model_path: str, verifier: str, save_path: str,
-                 train_api: Union[Callable, str, Tuple[str, str]], test_api: Union[Callable, str, Tuple[str, str]], reward_api_type: str = None,
-                 onnx_filename: str = "model.onnx"
+    def __init__(self, properties: List[DRLP],
+                 train_api: Union[Callable, str, Tuple[str, str]],
+                 save_path: str,
+                 verifier: str,
+                 onnx_filename: str = "model.onnx",
+                 init_model_dirpath: str = None,
+                 reward_api_type: str = None,
+                 test_api: Union[Callable, str, Tuple[str, str]] = None,
+                 curriculum_chosen_func: Callable = None,
                  ):
         self.properties = properties
         self.properties_apply = []
@@ -41,17 +46,19 @@ class Reintrainer:
         self.verification_results = []
         self.verifier = verifier
 
-        self.init_model_path = init_model_path
-        self.curr_model_path = init_model_path
-        self.next_model_path = None
-
-        self.round = -1
-
+        self.init_model_dirpath = init_model_dirpath
+        self.curr_model_dirpath = init_model_dirpath
+        self.next_model_dirpath = None
         self.onnx_filename = onnx_filename
+        if self.curr_model_dirpath is not None:
+            self.curr_model_path = os.path.join(self.curr_model_dirpath, self.onnx_filename)
+        else:
+            self.curr_model_path = None
 
         self.save_path = save_path
         self.model_select = 'latest'
 
+        self.round = -1
         self.train_api = train_api
         self.test_api = test_api
         if reward_api_type:
@@ -90,19 +97,19 @@ class Reintrainer:
             # %% Train
             util.log_prompt(3)
             util.log("########## Training Part ##########\n", level=CONSTANT.INFO)
-            self.next_model_path = self.get_next_model_path(self.round)
+            self.next_model_dirpath = self.make_next_model_dir(self.round)
 
             self.generate_constant()
             self.generate_reward()
 
             self.call_train_api(total_cycle=cycle)
 
-            self.curr_model_path = self.next_model_path
-            util.log("\n## Current model path: \n%s" % self.curr_model_path, level=CONSTANT.INFO)
+            self.curr_model_dirpath = self.next_model_dirpath
+            util.log("\n## Current model dirpath: \n%s" % self.curr_model_dirpath, level=CONSTANT.INFO)
 
     def generate_constant(self):
         code = self.get_constraint(self.properties[0])
-        with open(os.path.join(self.next_model_path, self.reward_api), "w") as f:
+        with open(os.path.join(self.next_model_dirpath, self.reward_api), "w") as f:
             f.write(code)
         return code
 
@@ -143,7 +150,7 @@ class Reintrainer:
         mode = "a+"
         if not to_append:
             mode = "w"
-        with open(os.path.join(self.next_model_path, self.reward_api), mode) as f:
+        with open(os.path.join(self.next_model_dirpath, self.reward_api), mode) as f:
             f.write(code)
 
         return code
@@ -164,11 +171,11 @@ class Reintrainer:
 
     def call_train_api(self, **kwargs):
         if isinstance(self.train_api, Callable):
-            kwargs["next_model_path"] = self.next_model_path
+            kwargs["next_model_dirpath"] = self.next_model_dirpath
             kwargs["reward_api"] = self.reward_api
 
-            if self.curr_model_path:
-                kwargs["curr_model_path"] = self.curr_model_path
+            if self.curr_model_dirpath:
+                kwargs["curr_model_dirpath"] = self.curr_model_dirpath
             self.train_api(**kwargs)
 
         elif isinstance(self.train_api, str) or \
@@ -178,13 +185,13 @@ class Reintrainer:
             if isinstance(self.train_api, Tuple):
                 cmd_prefix, cmd_suffix = self.train_api
             cmd = cmd_prefix + " " \
-                f"--total_cycle  {kwargs['total_cycle']} " \
-                f"--next_model_path {self.next_model_path} " \
-                f"--reward_api      {self.reward_api} " \
+                f"--total_cycle        {kwargs['total_cycle']} " \
+                f"--next_model_dirpath {self.next_model_dirpath} " \
+                f"--reward_api         {self.reward_api} " \
                 ""
 
-            if self.curr_model_path:
-                cmd += f"--curr_model_path {self.curr_model_path} "
+            if self.curr_model_dirpath:
+                cmd += f"--curr_model_dirpath {self.curr_model_dirpath} "
             cmd += cmd_suffix
 
             util.log(cmd, level=CONSTANT.INFO)
@@ -211,8 +218,8 @@ class Reintrainer:
         exec(code)
         return locals()[drlp.IS_VIOLATED_ID](x, y)
 
-    def get_next_model_path(self, round: int):
-        path = f"{self.save_path}/round_{round}"
+    def make_next_model_dir(self, round: int):
+        path = os.path.join(self.save_path, f"round_%03d" % (round))
         try:
             os.makedirs(path, exist_ok=True)
         except Exception as e:
@@ -220,7 +227,7 @@ class Reintrainer:
         return path
 
     def load_model(self, path: str) -> NN:
-        return NN(os.path.join(path, self.onnx_filename))
+        return NN(path)
 
     # def get_model_from(path: str, opt='latest') -> str:
     #     if opt == 'latest':
