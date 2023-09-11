@@ -107,6 +107,10 @@ class Reintrainer:
             self.curr_model_dirpath = self.next_model_dirpath
             util.log("\n## Current model dirpath: \n%s" % self.curr_model_dirpath, level=CONSTANT.INFO)
 
+            # %% Test
+            util.log("########## Testing Part ##########\n", level=CONSTANT.INFO)
+            self.call_test_api()
+
     def generate_constant(self):
         code = self.get_constraint(self.properties[0])
         with open(os.path.join(self.next_model_dirpath, self.reward_api), "w") as f:
@@ -170,9 +174,12 @@ class Reintrainer:
         return rwd
 
     def call_train_api(self, **kwargs):
+        util.log("Training...", level=CONSTANT.INFO)
+
         if isinstance(self.train_api, Callable):
             kwargs["next_model_dirpath"] = self.next_model_dirpath
             kwargs["reward_api"] = self.reward_api
+            kwargs["total_cycle"] = kwargs['total_cycle']
 
             if self.curr_model_dirpath:
                 kwargs["curr_model_dirpath"] = self.curr_model_dirpath
@@ -192,6 +199,40 @@ class Reintrainer:
 
             if self.curr_model_dirpath:
                 cmd += f"--curr_model_dirpath {self.curr_model_dirpath} "
+            cmd += cmd_suffix
+
+            util.log(cmd, level=CONSTANT.INFO)
+            # with subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as process:
+            #     for line in process.stdout:
+            #         util.log(line.decode('utf8'))
+
+            # proc = subprocess.run(cmd.split(" "), capture_output=True, text=True)
+            proc = subprocess.run(cmd, shell=True, capture_output=False)
+            # dnnv_stdout = proc.stdout
+            # dnnv_stderr = proc.stderr
+            # print(dnnv_stderr)
+            # print("\n")
+            # print(dnnv_stdout)
+
+    def call_test_api(self, **kwargs):
+        util.log("Testing...", level=CONSTANT.INFO)
+
+        if isinstance(self.test_api, Callable):
+            kwargs["reward_api"] = self.reward_api
+            kwargs["curr_model_dirpath"] = self.curr_model_dirpath
+            self.test_api(**kwargs)
+
+        elif isinstance(self.test_api, str) or \
+                isinstance(self.test_api, Tuple):
+            cmd_prefix = self.test_api
+            cmd_suffix = ""
+            if isinstance(self.test_api, Tuple):
+                cmd_prefix, cmd_suffix = self.test_api
+            cmd = cmd_prefix + " " \
+                f"--curr_model_dirpath {self.curr_model_dirpath} " \
+                f"--reward_api         {self.reward_api} " \
+                ""
+            
             cmd += cmd_suffix
 
             util.log(cmd, level=CONSTANT.INFO)
