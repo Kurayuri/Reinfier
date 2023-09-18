@@ -53,12 +53,9 @@ def unroll_nn(network: NN, depth: int, branchable=False) -> NN:
     graph_node = graph.node
     graph_input = graph.input[0]
     graph_input_origin = graph_input.name
-    graph_input_length = int(
-        graph_input.type.tensor_type.shape.dim[1].dim_value)
     graph_output = graph.output[0]
     graph_output_origin = graph_output.name
-    graph_output_length = int(
-        graph_output.type.tensor_type.shape.dim[1].dim_value)
+    graph_input_length,graph_output_length = network.size()
 
     if depth > 1:
         graph_input.name = "Input"

@@ -5,3 +5,4 @@ from .parser import VIOLATED_ID, IS_VIOLATED_ID
 from .editor import edit
 from .DNNP import DNNP
 from .DRLP import DRLP
+from .Feature import Dynamic, Static

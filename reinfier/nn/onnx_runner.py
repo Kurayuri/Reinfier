@@ -17,6 +17,7 @@ def run_onnx(network: Union[str, NN], input: Union[str, np.ndarray]) -> np.ndarr
         input_array = input
     else:
         raise TypeError("Unable to run on type '{0}'".format(type(input)))
+    input_array = input_array.astype(np.float32).reshape(1,-1)
 
     if isinstance(network, str):
         pass
@@ -24,7 +25,6 @@ def run_onnx(network: Union[str, NN], input: Union[str, np.ndarray]) -> np.ndarr
         network = network.path
     else:
         raise TypeError("Unable to run on type '{0}'".format(type(network)))
-
     session = onnxruntime.InferenceSession(network,)
     input_name = session.get_inputs()[0].name
     output = session.run([], {input_name: input_array})

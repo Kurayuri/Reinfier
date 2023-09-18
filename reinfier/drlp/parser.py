@@ -1,4 +1,5 @@
 from ..import util
+from .Feature import Dynamic, Static
 from .DRLPTransformer import *
 from .DRLP import DRLP
 from .DNNP import DNNP
@@ -8,6 +9,7 @@ import astpretty
 import astor
 import ast
 VIOLATED_ID = "violated"
+OCCURRED_ID = "occurred"
 IS_VIOLATED_ID = "is_violated"
 
 
@@ -136,94 +138,149 @@ def parse_drlp_get_constraint(property: DRLP) -> DRLP:
     input_size = transformer.input_size
     output_size = transformer.output_size
 
-    __, (ast_root_p, ast_root_q) = transform(DRLPTransformer_RIC(input_size, output_size), (ast_root_p, ast_root_q))
-    __, (ast_root_p, ast_root_q) = transform(DRLPTransformer_RSC(), (ast_root_p, ast_root_q))
-
+    # TODO
+    # __, (ast_root_p, ast_root_q) = transform(DRLPTransformer_RIC(input_size, output_size), (ast_root_p, ast_root_q))
+    transformer, (ast_root_p, ast_root_q) = transform(DRLPTransformer_RSC(), (ast_root_p, ast_root_q))
+    transformer, (ast_root_p, ast_root_q) = transform(DRLPTransformer_Boundary(input_size,output_size), (ast_root_p, ast_root_q))
+    
     drlp_pqi = make_pq(ast_root_p, ast_root_q)
-    return DRLP(drlp_pqi, filename=filename)
+    return DRLP(drlp_pqi, filename=filename),(transformer.input_dynamics,transformer.output_dynamics),(transformer.input_statics,transformer.output_statics)
 
 
-def parse_constaint_to_code(property: DRLP) -> str:
-    filename, drlp_vpq = read_drlp(property)
-    drlp_v, drlp_pq = split_drlp_vpq(drlp_vpq)
-    drlp_p, drlp_q = split_drlp_pq(drlp_pq)
+def parse_constaint_to_code(property: DRLP, dynamics, statics) -> str:
+    def ast_method():
+        filename, drlp_vpq = read_drlp(property)
+        drlp_v, drlp_pq = split_drlp_vpq(drlp_vpq)
+        drlp_p, drlp_q = split_drlp_pq(drlp_pq)
 
-    ast_root_p = ast.parse(drlp_p)
-    ast_root_q = ast.parse(drlp_q)
-    transformer, (ast_root_p, ast_root_q) = transform(DRLPTransformer_Init(1), (ast_root_p, ast_root_q))
+        ast_root_p = ast.parse(drlp_p)
+        ast_root_q = ast.parse(drlp_q)
+        transformer, (ast_root_p, ast_root_q) = transform(DRLPTransformer_Init(1), (ast_root_p, ast_root_q))
+        transformer, (ast_root_p, ast_root_q) = transform(DRLPTransformer_SplitCompare(), (ast_root_p, ast_root_q))
 
-    # Expectation if test
-    values = []
-    for exp in ast_root_q.body:
-        ops = exp
-        if isinstance(exp, ast.Expr):
-            ops = exp.value
-            values.append(ops)
-    node_q_test = ast.UnaryOp(
-        op=ast.Not(),
-        operand=ast.BoolOp(
-            op=ast.And(),
-            values=values
+        # Expectation if test
+        values = []
+        for exp in ast_root_q.body:
+            ops = exp
+            if isinstance(exp, ast.Expr):
+                ops = exp.value
+                values.append(ops)
+        node_q_test = ast.UnaryOp(
+            op=ast.Not(),
+            operand=ast.BoolOp(
+                op=ast.And(),
+                values=values
+            )
         )
-    )
-    # Expectation if
-    node_q_if = ast.If(
-        test=node_q_test,
-        body=[
-            ast.Assign(
-                targets=[ast.Name(id=VIOLATED_ID, ctx=ast.Store())],
-                value=ast.Constant(value=True, kind=None),
-                type_comment=None,
-            ),
-        ],
-        orelse=[]
-    )
-
-    # Precondition if test
-    values = []
-    for exp in ast_root_p.body:
-        ops = exp
-        if isinstance(exp, ast.Expr):
-            ops = exp.value
-            values.append(ops)
-    node_p_test = ast.BoolOp(
-        op=ast.And(),
-        values=values
-    )
-    # Precondition if
-    node_p_if = ast.If(
-        test=node_p_test,
-        body=[node_q_if],
-        orelse=[]
-    )
-
-    py_node = ast.parse("")
-    py_node.body = [
-        ast.FunctionDef(
-            name=IS_VIOLATED_ID,
-            args=ast.arguments(
-                args=[
-                    ast.arg(arg=DRLPTransformer.INPUT_ID, annotation=None),
-                    ast.arg(arg=DRLPTransformer.OUTPUT_ID, annotation=None),
-                ],
-                defaults=[], vararg=None, kwarg=None
-            ),
+        # Expectation if
+        node_q_if = ast.If(
+            test=node_q_test,
             body=[
                 ast.Assign(
                     targets=[ast.Name(id=VIOLATED_ID, ctx=ast.Store())],
-                    value=ast.Constant(value=False, kind=None),
+                    value=ast.Constant(value=True, kind=None),
                     type_comment=None,
                 ),
-                node_p_if,
-                ast.Return(
-                    value=ast.Name(id=VIOLATED_ID, ctx=ast.Load())
-                )
             ],
-            decorator_list=[]
+            orelse=[]
         )
-    ]
-    py_code = astor.to_source(py_node)
-    return py_code
+
+        # Precondition if test
+        values = []
+        for exp in ast_root_p.body:
+            ops = exp
+            if isinstance(exp, ast.Expr):
+                ops = exp.value
+                values.append(ops)
+        node_p_test = ast.BoolOp(
+            op=ast.And(),
+            values=values
+        )
+        # Precondition if
+        node_p_if = ast.If(
+            test=node_p_test,
+            body=[
+                    ast.Assign(
+                        targets=[ast.Name(id=OCCURRED_ID, ctx=ast.Store())],
+                        value=ast.Constant(value=True, kind=None),
+                        type_comment=None,
+                    ),
+                    node_q_if
+                ],
+            orelse=[]
+        )
+
+        py_node = ast.parse("")
+        py_node.body = [
+            ast.Import(
+                names=[ast.alias(name='numpy', asname='np')],
+                # names=[ast.alias(name='array')],
+                level=0
+            ),
+            ast.FunctionDef(
+                name=IS_VIOLATED_ID,
+                args=ast.arguments(
+                    args=[
+                        ast.arg(arg=DRLPTransformer.INPUT_ID, annotation=None),
+                        ast.arg(arg=DRLPTransformer.OUTPUT_ID, annotation=None),
+                    ],
+                    defaults=[], vararg=None, kwarg=None
+                ),
+                body=[
+                    ast.Assign(
+                        targets=[ast.Name(id=VIOLATED_ID, ctx=ast.Store())],
+                        value=ast.Constant(value=False, kind=None),
+                        type_comment=None,
+                    ),
+                    ast.Assign(
+                        targets=[ast.Name(id=OCCURRED_ID, ctx=ast.Store())],
+                        value=ast.Constant(value=False, kind=None),
+                        type_comment=None,
+                    ),
+                    node_p_if,
+                    ast.Return(
+                        value = ast.Tuple(
+                            elts=[
+                                ast.Name(id=OCCURRED_ID, ctx=ast.Load()),
+                                ast.Name(id=VIOLATED_ID, ctx=ast.Load())
+                                ],
+                            ctx=ast.Load()
+                    ))
+                ],
+                decorator_list=[]
+            )
+        ]
+        code = astor.to_source(py_node)
+        return code
+
+    def str_method():
+        input_srcs=[]
+        for idx,feature in {**dynamics[0],**statics[0]}.items():
+            op= ">=" if feature.lower_closed else ">"
+            input_srcs.append(f'''{DRLPTransformer.INPUT_ID}[0][{idx}] {op} {feature.lower}''')
+            op= "<=" if feature.upper_closed else "<"
+            input_srcs.append(f'''{DRLPTransformer.INPUT_ID}[0][{idx}] {op} {feature.upper}''')
+        output_srcs=[]
+        for idx,feature in {**dynamics[1],**statics[1]}.items():
+            op= ">=" if feature.lower_closed else ">"
+            output_srcs.append(f'''{DRLPTransformer.OUTPUT_ID}[0][{idx}] {op} {feature.lower}''')
+            op= "<=" if feature.upper_closed else "<"
+            output_srcs.append(f'''{DRLPTransformer.OUTPUT_ID}[0][{idx}] {op} {feature.upper}''')
+
+        code=f'''
+def {IS_VIOLATED_ID}({DRLPTransformer.INPUT_ID}, {DRLPTransformer.OUTPUT_ID}):
+    {VIOLATED_ID} = False
+    {OCCURRED_ID} = False
+    if '''+" and ".join(input_srcs)+f''' :
+        {OCCURRED_ID} = True
+        if not ('''+ " and ".join(output_srcs) +f'''):
+            {VIOLATED_ID} = True
+    return {OCCURRED_ID}, {VIOLATED_ID}
+    '''
+        return code
+    
+    # return str_method()
+    return ast_method()
 
 
 def parse_pq(property: DRLP, depth: int, kwargs: dict = {}, to_induct: bool = False) -> DNNP:

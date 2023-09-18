@@ -8,34 +8,57 @@ def get_filename_from_path(path: str):
     return os.path.basename(path)
 
 
-def get_savepath(filename, step: int, type: str):
+def get_savepath(filename, step: int, filename_extension: str):
     try:
         os.mkdir(Setting.TmpPath)
     except BaseException:
         pass
-    # filename=get_filename_from_path(filename)
     if isinstance(filename, str):
         filename = filename.rsplit(".")[0]
-        return "%s/%s#%d_%s.%s" % (Setting.TmpPath, filename, step, str(time.time()).replace(".", ""), type)
-        # return "%s/%s#%d.%s" % (Setting.TmpPath, filename, step,type)
+        filename = "%s#%d_%s.%s"%(filename, step, str(time.time()).replace(".", ""), filename_extension)
+        return os.path.join(Setting.TmpPath, filename)
     else:
         filename = [get_filename_from_path(x).rsplit(".")[0] for x in filename]
-        return "%s/%s.%s" % (Setting.TmpPath, "@".join(filename), type)
+        filename= "%s.%s"%("@".join(filename),filename_extension)
+        return os.path.join(Setting.TmpPath, filename)
 
 
-def log(*args, level=CONSTANT.DEBUG):
+def log(*args, level=CONSTANT.DEBUG, style=CONSTANT.STYLE_RESET,end:str="\n"):
     if len(args) == 1 and (isinstance(args[0], tuple) or isinstance(args[0], list)):
         args = args[0]
     if level >= Setting.LogLevel:
-        print(" ".join(map(str, args)))
+        print(style+" ".join(map(str, args))+CONSTANT.STYLE_RESET,end=end)
 
 
-def log_prompt(prompt_level: int, level=CONSTANT.WARNING):
+def log_prompt(prompt_level: int, text="",level=CONSTANT.WARNING,style=CONSTANT.STYLE_RESET):
+    prompt_lens=[60,60,80,80,120]
+    prompts=[".","*","#","-","="]
+
+
     if prompt_level == 1:
-        log(("*" * 80), level=CONSTANT.INFO)
+        log(("*" * prompt_lens[prompt_level]), level=CONSTANT.INFO,style=style)
     elif prompt_level == 2:
-        log(("\n\n" + "#" * 80 + "\n" + "#" * 80), level=level)
+        log(("\n\n" + "#" * prompt_lens[prompt_level] + "\n" + "#" * prompt_lens[prompt_level]), level=level,style=style)
     elif prompt_level == 3:
-        log(("\n" + ("-" * 120 + "\n") * 3), level=level)
+        log(("\n" + ("-" * prompt_lens[prompt_level] + "\n") * 3), level=level,style=style,end="")
     elif prompt_level == 4:
-        log("\n\n\n\n"+(("=" * 160 + "\n") * 4), level=level)
+        log("\n\n\n\n"+((prompts[prompt_level] * prompt_lens[prompt_level] + "\n") * 4), level=level,style=style,end="")
+
+    if text:
+        textlen=len(text)
+        bounds = prompt_lens[prompt_level]-2-textlen
+        left = bounds//2
+        right = bounds-left
+        log(f"{prompts[prompt_level] * left} {text} {prompts[prompt_level] * right}",level=level,style=style)
+
+
+def confirm_input(text,itype):
+    if itype == CONSTANT.INTERACTIVE_ITYPE_y_or_N:
+        log(text,f"({CONSTANT.INTERACTIVE_ITYPE_y_or_N})",level=CONSTANT.CRITICAL,end="")
+        response=input().strip().lower()
+        if response == "y" or response == "yes":
+            return True
+        else:
+            return False
+
+

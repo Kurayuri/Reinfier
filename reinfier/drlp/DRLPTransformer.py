@@ -1,8 +1,11 @@
 from .error import *
+from .import auxiliary
+from .Feature import Dynamic, Static
 import astor
 import copy
 import ast
 import sys
+
 
 class DRLPTransformer(ast.NodeTransformer):
     INPUT_SIZE_ID = "x_size"
@@ -46,7 +49,35 @@ class DRLPTransformer(ast.NodeTransformer):
         return ans, root.body[0].value
 
     def flatten_list(self, lst):
-        return [x for y in lst for x in y]
+        flat_list = []
+        for item in lst:
+            if isinstance(item, list):
+                flat_list.extend(self.flatten_list(item))
+            else:
+                flat_list.append(item)
+        return flat_list
+
+    def flatten_List(self, node):
+        flat_list = []
+
+        if isinstance(node, ast.List):
+            for item in node.elts:
+                if isinstance(item, ast.List):
+                    flat_list.extend(self.flatten_List(item))
+                else:
+                    flat_list.append(item)
+        else:
+            flat_list.append(node)
+        return flat_list
+
+    def get_io_element(self, elements):
+        io_element = None
+        for element in elements:
+            id = self.get_Name(element)
+            if id == self.INPUT_ID or id == self.OUTPUT_ID:
+                io_element = element
+                is_input = True if id == self.INPUT_ID else False
+        return io_element, is_input
 
     def is_dim_n_List(self, node, n: int):
         if isinstance(node, ast.List):
@@ -60,6 +91,24 @@ class DRLPTransformer(ast.NodeTransformer):
                 return self.is_dim_n_List(node.elts[0], n - 1)
         return False
 
+    def get_dim_List(self, node):
+        dim = 0
+        if isinstance(node, ast.List):
+            while dim < 10:
+                dim += 1
+                if self.is_dim_n_List(node, dim):
+                    break
+        return dim
+
+    def get_dim_Subscrpit(self, node):
+        dim = 0
+        if isinstance(node, ast.Subscript):
+            while dim < 10:
+                dim += 1
+                if self.is_dim_n_Subscrpit(node, dim):
+                    break
+        return dim
+
     def is_dim_n_Subscrpit(self, node, n: int):
         if isinstance(node, ast.Subscript):
             if sys.version_info >= (3, 8):
@@ -71,6 +120,12 @@ class DRLPTransformer(ast.NodeTransformer):
                 if isinstance(node.value, ast.Subscript):
                     return self.is_dim_n_Subscrpit(node.value, n - 1)
         return False
+
+    def get_Name(self, node):
+        if isinstance(node, ast.Name):
+            return node.id
+        elif isinstance(node, ast.Subscript):
+            return self.get_Name(node.value)
 
     def is_Constant(self, node):
         if (isinstance(node, ast.Constant) or
@@ -197,14 +252,16 @@ class DRLPTransformer_Init(DRLPTransformer):
                 if self.input_size is None:
                     self.input_size = size
                 else:
-                    if self.input_size != node.value.value:
-                        raise DRLPParsingError("Input sizes are not equal")
+                    pass
+                    # if self.input_size != node.value.value:
+                    #     raise DRLPParsingError("Input sizes are not equal")
             if io_element.id == self.OUTPUT_ID:
                 if self.output_size is None:
                     self.output_size = size
                 else:
-                    if self.output_size != node.value.value:
-                        raise DRLPParsingError("Output sizes are not equal")
+                    pass
+                    # if self.output_size != node.value.value:
+                    #     raise DRLPParsingError("Output sizes are not equal")
         return node
 
     def visit_For(self, node: ast.For):
@@ -288,7 +345,7 @@ class DRLPTransformer_Init(DRLPTransformer):
                     args=node.body,
                     keywords=[]
                 ))
-        elif node.items[0].context_expr.id == "orange":
+        elif node.items[0].context_expr.id == "range":
             # if node.name=="range":
             node = ast.Expr(
                 ast.Call(
@@ -613,7 +670,7 @@ class DRLPTransformer_RIC(DRLPTransformer):
                 for element in elements:
                     if element is not init_element:
                         try:
-                            __,elementi = self.calculate(element)
+                            __, elementi = self.calculate(element)
                         except BaseException:
                             elementi = element
                         if isinstance(elementi, ast.List) or isinstance(elementi, ast.Constant):
@@ -623,3 +680,143 @@ class DRLPTransformer_RIC(DRLPTransformer):
                 if is_init == True:
                     return None
         return node
+
+
+class DRLPTransformer_Boundary(DRLPTransformer):
+    '''
+    Get boundary of each feature
+    '''
+
+    def __init__(self, input_size, output_size):
+        super().__init__()
+        self.input_size = input_size
+        self.output_size = output_size
+        self.depth = 1
+        self.input_dynamics = {idx: Dynamic() for idx in range(input_size)}
+        self.input_statics = {}
+        self.output_dynamics = {idx: Dynamic() for idx in range(output_size)}
+        self.output_statics = {}
+
+    def fill(self, elems, is_lower, is_closed, idxs, is_input):
+        elems = self.flatten_List(elems)
+        dynamics = self.input_dynamics if is_input else self.output_dynamics
+        statics = self.output_dynamics if is_input else self.output_statics
+        values = []
+
+        for elem in elems:
+            if isinstance(elem, ast.Constant):
+                values.append(elem.value)
+            elif isinstance(elem, ast.UnaryOp) and isinstance(elem.op, ast.USub):
+                values.append(- elem.operand.value)
+            else:
+                values.append(astor.to_source(elem))
+
+        if is_lower:
+            for i in range(len(idxs)):
+                dynamics[idxs[i]].lower = values[i]
+                dynamics[idxs[i]].lower_closed = is_closed
+        else:
+            for i in range(len(idxs)):
+                dynamics[idxs[i]].upper = values[i]
+                dynamics[idxs[i]].upper_closed = is_closed
+
+    def compr(self, left, right, op, io_element, dim, is_input):
+        size = self.input_size if is_input else self.output_size
+        if dim == 0:
+            idxs = [i for i in range(size * self.depth)]
+        elif dim == 1:
+            idxs = [i for i in range(size)]
+        elif dim == 2:
+
+            if isinstance(io_element.slice, ast.Index):
+                idxs = [io_element.slice.value.value]
+            elif isinstance(io_element.slice, ast.Slice):
+                idxs = [i for i in range(io_element.slice.lower, io_element.slice.upper)]
+
+        if left is io_element:
+            if isinstance(op, ast.Lt):
+                self.fill(right, False, False, idxs, is_input)
+            elif isinstance(op, ast.LtE):
+                self.fill(right, False, True, idxs, is_input)
+            elif isinstance(op, ast.Gt):
+                self.fill(right, True, False, idxs, is_input)
+            elif isinstance(op, ast.GtE):
+                self.fill(right, True, True, idxs, is_input)
+
+        elif right is io_element:
+            if isinstance(op, ast.Lt):
+                self.fill(left, True, False, idxs, is_input)
+            elif isinstance(op, ast.LtE):
+                self.fill(left, True, True, idxs, is_input)
+            elif isinstance(op, ast.Gt):
+                self.fill(left, False, False, idxs, is_input)
+            elif isinstance(op, ast.GtE):
+                self.fill(left, False, True, idxs, is_input)
+
+    def visit_Compare(self, node: ast.Compare):
+        node = self.generic_visit(node)
+        elements = [node.left] + node.comparators
+        ops = node.ops
+
+        io_element, is_input = self.get_io_element(elements)
+        dim = self.get_dim_Subscrpit(io_element)
+
+        size = None
+        if io_element is not None:
+            for i in range(len(ops)):
+                self.compr(elements[i], elements[i + 1], ops[i], io_element, dim, is_input)
+        return node
+
+
+class DRLPTransformer_SplitCompare(DRLPTransformer):
+    '''
+    Split Compare with miltiple ops to multiple Compare with single ops
+    '''
+
+    def __init__(self):
+        super().__init__()
+
+    # def visit_List(self, node):
+    #     if len(node.elts) > 1:
+    #         node = ast.Call(
+    #             func=ast.Name(id="np.array", ctx=ast.Load()),
+    #             # args=[ast.List(elts=[node],ctx=ast.Load())],
+    #             args=[node],
+    #             keywords=[]
+    #         )
+    #     else:
+    #         node = node.elts[0]
+    #     return node
+
+    def visit_Compare(self, node):
+        node = self.generic_visit(node)
+        elements = [node.left] + node.comparators
+        ops = node.ops
+
+        io_element, is_input = self.get_io_element(elements)
+        dim = self.get_dim_Subscrpit(io_element)
+        if len(ops) == 1:
+            return node
+
+        values = []
+        for i in range(len(ops)):
+            values.append(
+                ast.Call(
+                    func=ast.Attribute(
+                        value = ast.Name(id="np",ctx=ast.Load()),
+                        attr='all',
+                        ctx=ast.Load()
+                    ),
+                    args=[ast.Compare(
+                        left=elements[i],
+                        comparators=[elements[i + 1]],
+                        ops=[ops[i]]
+                    )],
+                    keywords=[]
+                )
+            )
+
+        return ast.BoolOp(
+            op=ast.And(),
+            values=values
+        )

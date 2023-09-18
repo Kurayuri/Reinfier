@@ -92,6 +92,12 @@ def boot_dnnv(network: NN, property: DNNP, verifier: str,
            verifier,
            "--save-violation", violation_path
            ]
+    cmd_readable = [dnnv,
+           f"'{property_path}'",
+           "--network", network_alias, f"'{network_path}'",
+           verifier,
+           "--save-violation", f"'{violation_path}'"
+           ]
 
     if os.path.exists(violation_path):
         os.remove(violation_path)
@@ -99,7 +105,7 @@ def boot_dnnv(network: NN, property: DNNP, verifier: str,
     while True:
         util.log_prompt(1)
         util.log("Single DNN Query Verifying...", level=CONSTANT.INFO)
-        util.log((" ".join(cmd)), level=CONSTANT.INFO)
+        util.log((" ".join(cmd_readable)), level=CONSTANT.INFO)
 
         # %% Call DNNV from fucntion
 

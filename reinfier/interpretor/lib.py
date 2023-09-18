@@ -1,5 +1,6 @@
 from ..drlp.DRLP import DRLP
 from ..import drlp
+from ..import util
 from typing import List, Tuple
 import numpy
 
@@ -10,13 +11,13 @@ def analyze_break_points(break_points: List[Tuple[DRLP, Tuple[int, bool, numpy.n
 
     def prt(src, dst: None, curr_break_lines, curr_break_points):
         if dst is None:
-            print("Single point:", src[0].kwargs, src[1][0])
+            util.log("Single point:", src[0].kwargs, src[1][0])
         else:
             curr_break_lines.append((src[1][0], dst[1][0], src[0].kwargs, dst[0].kwargs))
             if src[1][0] == dst[1][0]:
-                print("Line Keep  : %5s == %5s" % (src[1][0], dst[1][0]), src[0].kwargs, dst[0].kwargs)
+                util.log("Line Keep  : %5s == %5s" % (src[1][0], dst[1][0]), src[0].kwargs, dst[0].kwargs)
             else:
-                print("Line Change: %5s -> %5s" % (src[1][0], dst[1][0]), src[0].kwargs, dst[0].kwargs)
+                util.log("Line Change: %5s -> %5s" % (src[1][0], dst[1][0]), src[0].kwargs, dst[0].kwargs)
                 curr_break_points.append((src[1][0], dst[1][0], dst[0].kwargs))
 
     if len(break_points) == 1:
@@ -34,7 +35,7 @@ def analyze_break_points(break_points: List[Tuple[DRLP, Tuple[int, bool, numpy.n
             # if break_points[i - 1][1][0] == break_points[i][1][0]:
             prt(break_points[i - 1], break_points[i], curr_break_lines, curr_break_points)
         else:
-            print("\nNew line:")
+            util.log("\nNew line:")
 
             curr_break_lines = []
             curr_break_points = []

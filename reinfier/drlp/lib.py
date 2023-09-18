@@ -256,5 +256,3 @@ def filter_unused_variables(variables_v, variables_pq):
     return variables_v
 
 
-def pprint(ast_root):
-    astpretty.pprint(ast_root, show_offsets=False)
