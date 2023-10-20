@@ -91,7 +91,7 @@ class Reintrainer:
         except BaseException:
             if not self.resumed:
                 if not util.lib.confirm_input(
-                        f"Detected save_path {self.save_dirpath} already exists, but Reinttrainer does not start in resuming training mode. Force to continue ?", itype=CONSTANT.INTERACTIVE_ITYPE_y_or_N):
+                        f"Detected save_path {self.save_dirpath} already exists, but Reintrainer does not start in resuming training mode.", itype=CONSTANT.INTERACTIVE_ITYPE_y_or_N):
                     raise Exception("Exit")
 
         # Path Filename
@@ -189,7 +189,7 @@ class Reintrainer:
             util.log("Round %03d:" % self.round, level=CONSTANT.INFO)
             util.log(self.curr_model_dirpath, level=CONSTANT.INFO)
             self.log_result(self.verification_results, test_result)
-            util.log("Reward Generation Time: %.2f s    Training Time: %.2f s    Test Time: %.2f s Verification Time: %.2f s" % (tuple(times)), level=CONSTANT.INFO)
+            util.log("Reward Generation Time: %.2f s    Training Time: %.2f s    Verification Time: %.2f s    Test Time: %.2f s" % (tuple(times)), level=CONSTANT.INFO)
             util.log("Round Time: %.2f s    Total Time: %.2f s" % (sum(times), self.timerGroup.now()[2]), level=CONSTANT.INFO)
 
         # %% Final
@@ -347,7 +347,7 @@ def get_reward(violated, reward, x ,y):
         for idx, static in statics.items():
             x_base[0][idx] = static.lower if is_lower else static.upper    
         
-        y_base = nn.run_onnx(network, np.array(x_base, dtype=np.float32))
+        y_base = nn.run_onnx(network, np.array(x_base, dtype=np.float32))[0]
 
         x_eps_id = "x_eps"
         kwargs = {
@@ -356,7 +356,6 @@ def get_reward(violated, reward, x ,y):
                        "precise": 0.01,
                        "method": "binary", },
         }
-
 
         values = {
             "y_eps": 1e-0,
@@ -391,53 +390,6 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
         Setting.set_LogLevel(logLevel)
 
         return answer[0] if answer is not None else 1
-
-#         kwargs = {
-#             "x_eps": {"lower_bound": 0,
-#                         "upper_bound": 0.5,
-#                         "precise": 0.05,
-#                         "method": "binary", },
-#         }
-
-#         if lu==0:
-#             src = '''
-# @Pre
-# x_size = 3
-# y_size = 1
-# [[0,a,b]] <= x[0] <= [[0,a ,b+ x_eps]]
-
-
-# @Exp
-# y[0][y_original]-y_eps<=y[0][0]<=y[0][y_original]+y_eps
-# '''
-#         else:
-#             src = '''
-# @Pre
-# x_size = 3
-# y_size = 1
-# [[1,a,b-x_eps]] <= x[0] <= [[1,a,b]]
-
-# @Exp
-# y[0][y_original]-y_eps<=y[0][0]<=y[0][y_original]+y_eps
-# '''
-
-#         property=DRLP(src).set_values(values)
-#         bps = alg.search_break_points(network, property, kwargs, 0.01, self.verifier, k_max=1, to_induct=False)
-#         inline_bps, inline_bls = interpretor.analyze_break_points(bps)
-#         answer = interpretor.answer_importance_analysis(inline_bps)
-#         answers.append(answer[0])
-
-#         absolute_importance=[]
-
-        # for answer in answers:
-        #     if not answer:
-        #         answer = [1]
-        #     absolute_importance.append(1/answer[0])
-        # imp_sum=sum(absolute_importance)
-        # relative_importace = [imp/imp_sum for imp in absolute_importance]
-        # util.log("Absolute Importance:",absolute_importance,level=CONSTANT.WARNING,style=CONSTANT.STYLE_RED)
-        # util.log("Relative Importance:",relative_importace,level=CONSTANT.WARNING,style=CONSTANT.STYLE_RED)
-
 
     def call_train_api(self, **kwargs):
         util.log("Training...", level=CONSTANT.INFO)
@@ -543,9 +495,6 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
         except Exception as e:
             util.log(e, level=CONSTANT.ERROR)
         return path
-
-    # def load_model(self, path: str) -> NN:
-    #     return NN(path)
 
     def load_test_result(self, path: str) -> Dict:
         result = None

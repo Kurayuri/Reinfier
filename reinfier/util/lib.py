@@ -54,7 +54,8 @@ def log_prompt(prompt_level: int, text="",level=CONSTANT.WARNING,style=CONSTANT.
 
 def confirm_input(text,itype):
     if itype == CONSTANT.INTERACTIVE_ITYPE_y_or_N:
-        log(text,f"({CONSTANT.INTERACTIVE_ITYPE_y_or_N})",level=CONSTANT.CRITICAL,end="")
+        log(text,level=CONSTANT.CRITICAL)
+        log(f"Proceed ({CONSTANT.INTERACTIVE_ITYPE_y_or_N})?",level=CONSTANT.CRITICAL,end=" ")
         response=input().strip().lower()
         if response == "y" or response == "yes":
             return True
