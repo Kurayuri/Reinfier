@@ -33,12 +33,17 @@ class Reintrainer:
     Reintrainer: Property Training Framework for Reinforcement Learning
     '''
 
-    REWARD_FUNC_ID = "get_reward"
-    REWARD_FUNC_PARA_REWARD_ID = "reward"
-    REWARD_FUNC_PARA_VIOLATED_ID = "violated"
+    GET_REWARD_FUNC_ID = "get_reward"
+    GET_REWARD_FUNC_PARA_REWARD_ID = "reward"
+    GET_REWARD_FUNC_PARA_X_ID = "x"
+    GET_REWARD_FUNC_PARA_Y_ID = "y"
+    GET_REWARD_FUNC_PARA_VIOLATED_ID = "violated"
+    IS_VIOLATED_FUNC_ID = "is_violated"
+
     REWARD_API_FILENAME = "reward_api.py"
     NORM_P1 = 1
     NORM_P2 = 2
+    ALPHA = 4
 
     def __init__(self, properties: List[DRLP],
                  train_api: Union[Callable, str, Tuple[str, str]],
@@ -214,17 +219,13 @@ class Reintrainer:
             self.property_statics[i] = statics
         with open(os.path.join(self.next_model_dirpath, self.reward_api), "w") as f:
             f.write(code)
+
+        exec(code)
+        self.Is_Violated_Func_Func=locals()[self.IS_VIOLATED_FUNC_ID]
+
         return code
 
-
     def generate_reward(self, to_append: bool = True):
-        # statics = {
-        #     0: Static(0, 1)
-        # }
-        # dynamics = {
-        #     1: Dynamic(-0.1, 0.1, lower_rho=1, upper_rho=2, weight=1),
-        #     2: Dynamic(-0.2, 0.2, lower_rho=10,upper_rho= 20,weight= 3)
-        # }
 
         dynamics = self.property_dynamics[0][0]
         statics = self.property_statics[0][0]
@@ -248,50 +249,7 @@ class Reintrainer:
                 dynamic.upper_rho = 1
                 dynamic.weight = 1
 
-        # if self.curr_model_dirpath and impan:
-        #     network = self.load_model(self.curr_model_path)
-        #     imp_lower=self.analyze_interpretor_importance(network,[[0,a_low, b_low]],0)
-        #     imp_upper=self.analyze_interpretor_importance(network,[[1,a_upp, b_upp]],1)
-        #     imp_a=(imp_lower[0]+imp_upper[0])/2
-        #     imp_b=(imp_lower[1]+imp_upper[1])/2
         util.log("Importance Weight:", {idx:dynamic.weight for idx,dynamic in dynamics.items()}, level=CONSTANT.WARNING, style=CONSTANT.STYLE_RED)
-
-        # imp_a=1
-        # imp_b=5
-
-#         code = f'''
-# def is_violated(x, y):
-#     violated = False
-#     occurred = False
-#     if x[0][0] <= 1 and x[0][0] >= 0 and x[0][2] <= 0.2 and x[0][2] >= -0.2 and x[0][1]>=-0.1 and x[0][1]<=0.1:
-#         occurred = True
-#         if not (y[0][0] < 1 and y[0][0] >= -1):
-#             violated = True
-#     return occurred, violated
-
-# '''
-
-
-# def reward(violated, rwd, x, y):
-#     p1=1
-#     p2=2
-#     def dist(lower, upper, val, mid):
-#         if val>mid:
-#             return ((upper-val)/(upper-mid))**p1
-#         else:
-#             return ((val-lower)/(mid-lower))**p1
-
-
-#     if violated:
-#         if {wt}:
-#             dist_x0 = dist({a_low},{a_upp},x[0][1],{mid_a})
-#             dist_x1 = dist({b_low},{b_upp},x[0][2],{mid_b})
-#             dist_y = 1
-#             rwd = rwd - 4*dist_y * (({imp_a}*dist_x0**2 + {imp_b}*dist_x1**2)**(1/p2))
-#         else:
-#             rwd = rwd
-#     return rwd
-# '''
 
         dist_srcs = []
 
@@ -304,10 +262,11 @@ class Reintrainer:
             sum_weight += dynamic.weight
 
         get_reward_code = f'''
-def get_reward(violated, reward, x ,y):
+def {self.GET_REWARD_FUNC_ID}({self.GET_REWARD_FUNC_PARA_X_ID}, {self.GET_REWARD_FUNC_PARA_Y_ID}, {self.GET_REWARD_FUNC_PARA_REWARD_ID}, {self.GET_REWARD_FUNC_PARA_VIOLATED_ID}):
     p1 = {self.NORM_P1}
     p2 = {self.NORM_P2}
-
+    alpha = {self.ALPHA}
+        
     def dist(val,lower, upper, mid):
         if val > upper or val < lower:
             return 0
@@ -317,14 +276,14 @@ def get_reward(violated, reward, x ,y):
         else:
             return ((val-lower)/(mid-lower))**p1
 
-    if violated:
+    if {self.GET_REWARD_FUNC_PARA_VIOLATED_ID}:
         dists_x = dict()
 ''' + "".join(["        " + srs + "\n" for srs in dist_srcs]) + f'''
         sum_1 = sum([dist**p2 for dist in dists_x.values()])
         sum_2 = {sum_weight}
         Dist_x = (sum_1)**(1/p2)/sum_2
         Fs = - 1 * Dist_x
-        reward = reward + Fs
+        reward = reward + Fs * alpha
     else:
         reward = reward
     return reward
@@ -332,6 +291,9 @@ def get_reward(violated, reward, x ,y):
 
         with open(os.path.join(self.next_model_dirpath, self.reward_api), mode) as f:
             f.write(get_reward_code)
+
+        exec(get_reward_code)
+        self.Get_Reward_Func=locals()[self.GET_REWARD_FUNC_ID]
 
         return get_reward_code
 
@@ -544,20 +506,17 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
         if test_result:
             util.log(test_result, level=CONSTANT.INFO)
 
-    def exec_constraint(self, code, x, y):
-        exec(code)
-        return locals()[drlp.IS_VIOLATED_ID](x, y)
+    def maker_RewardAPI(self):
+        return {
+            self.IS_VIOLATED_FUNC_ID: lambda x, y: self.Get_Reward_Func(x,y),
+            self.GET_REWARD_FUNC_ID: lambda x, y, reward, violated: self.Get_Reward_Func(x,y,reward,violated)
+        }
 
-    def RewardAPI(self, x, y, rwd: float):
-        # TODO
-        pass
-        # for property in self.properties:
-        #     x = [x]
-        #     y = [y]
-        #     code = self.get_constraint(property)
-        #     violated = self.exec_constraint(code, x, y)
-        #     rwd = self.reward(violated, rwd)
-        # return rwd
+    def Get_Reward_Func(self, x, y, reward, violated):
+        return reward
+    
+    def Is_Violated_Func(self, x, y):
+        return False, False
 
     def get_constraint(self, property):   # TODO
         constraint, dynamics, statics = drlp.parse_drlp_get_constraint(property)
