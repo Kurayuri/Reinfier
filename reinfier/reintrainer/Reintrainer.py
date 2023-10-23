@@ -234,7 +234,6 @@ class Reintrainer:
         if not to_append:
             mode = "w"
 
-        to_weight = False
         to_measure = True
 
         if self.curr_model_dirpath and to_measure:
@@ -297,9 +296,8 @@ def {self.GET_REWARD_FUNC_ID}({self.GET_REWARD_FUNC_PARA_X_ID}, {self.GET_REWARD
 
         return get_reward_code
 
-    def measure_rho(self, network: NN, dynamics: List[Dynamic], statics:List[Static], idx: int, is_lower: bool):
-        util.log("Dynamic",idx,level=CONSTANT.INFO)
-        logLevel = Setting.set_LogLevel(CONSTANT.CRITICAL)
+    def measure_rho(self, network: NN, dynamics: List[Dynamic], statics:List[Static], index: int, is_lower: bool):
+        util.log("Dynamic",index,level=CONSTANT.INFO)
 
         input_size, output_size = network.size()
 
@@ -309,33 +307,38 @@ def {self.GET_REWARD_FUNC_ID}({self.GET_REWARD_FUNC_PARA_X_ID}, {self.GET_REWARD
         for idx, static in statics.items():
             x_base[0][idx] = static.lower if is_lower else static.upper    
         
-        y_base = nn.run_onnx(network, np.array(x_base, dtype=np.float32))[0]
+        INPUT_EPS_MIN = 0.0
+        INPUT_EPS_MAX = 0.2
+        INPUT_EPS_PRECISION = 1e-2
+        def verification():
+            logLevel = Setting.set_LogLevel(CONSTANT.CRITICAL)
+            y_base = nn.run_onnx(network, np.array(x_base, dtype=np.float32))[0]
 
-        x_eps_id = "x_eps"
-        kwargs = {
-            x_eps_id: {"lower_bound": 0,
-                       "upper_bound": 0.2,
-                       "precise": 0.01,
-                       "method": "binary", },
-        }
+            x_eps_id = "x_eps"
+            kwargs = {
+                x_eps_id: {"lower_bound": INPUT_EPS_MIN,
+                        "upper_bound": INPUT_EPS_MAX,
+                        "precise": INPUT_EPS_PRECISION,
+                        "method": "binary", },
+            }
 
-        values = {
-            "y_eps": 1e-0,
-            "y_base": float(y_base[0][0])
-        }
+            values = {
+                "y_eps": 1e-0,
+                "y_base": float(y_base[0][0])
+            }
 
-        bound = [str(x_base[0][i]) for i in range(input_size)]
+            bound = [str(x_base[0][i]) for i in range(input_size)]
 
-        if is_lower == 0:
-            bound_lower = ",".join(bound)
-            bound[idx] = bound[idx] + "+" + x_eps_id
-            bound_upper = ",".join(bound)
-        else:
-            bound_upper = ",".join(bound)
-            bound[idx] = bound[idx] + "-" + x_eps_id
-            bound_lower = ",".join(bound)
+            if is_lower == 0:
+                bound_lower = ",".join(bound)
+                bound[index] = bound[index] + "+" + x_eps_id
+                bound_upper = ",".join(bound)
+            else:
+                bound_upper = ",".join(bound)
+                bound[index] = bound[index] + "-" + x_eps_id
+                bound_lower = ",".join(bound)
 
-        src = f'''
+            src = f'''
 @Pre
 x_size = {input_size}
 y_size = {output_size}
@@ -344,14 +347,28 @@ y_size = {output_size}
 
 @Exp
 y_base-y_eps<=y[0][0]<=y_base+y_eps
-'''
-        property = DRLP(src).set_values(values)
-        bps = alg.search_break_points(network, property, kwargs, 0.01, self.verifier, k_max=1, to_induct=False)
-        inline_bps, inline_bls = interpretor.analyze_break_points(bps)
-        answer,__,__ = interpretor.answer_importance_analysis(inline_bps)
-        Setting.set_LogLevel(logLevel)
+    '''
+            property = DRLP(src).set_values(values)
+            bps = alg.search_break_points(network, property, kwargs, 0.01, self.verifier, k_max=1, to_induct=False)
+            inline_bps, inline_bls = interpretor.analyze_break_points(bps)
+            answer,__,__ = interpretor.answer_importance_analysis(inline_bps)
+            Setting.set_LogLevel(logLevel)
 
-        return answer[0] if answer is not None else 1
+            return answer[0] if answer is not None else 1
+
+        def grad():
+            if is_lower:
+                lower = x_base[0][index] + INPUT_EPS_MIN
+                upper = x_base[0][index] + INPUT_EPS_MIN
+            else:
+                lower = x_base[0][index] - INPUT_EPS_MIN
+                upper = x_base[0][index] + INPUT_EPS_MIN
+
+                        
+            (max_sum, max_val), (min_sum, min_val) = interpretor.measure_sensitivity(network=network, input=x_base, index=(0,index), 
+                                                                                     lower=lower, upper=upper,precision = INPUT_EPS_PRECISION)
+            return abs(max_sum) if abs(max_sum) > abs(min_sum) else abs(min_sum)
+        return grad()
 
     def call_train_api(self, **kwargs):
         util.log("Training...", level=CONSTANT.INFO)

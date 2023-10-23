@@ -194,6 +194,8 @@ def search_boundary_hypercubic(network: NN, property: DRLP, kwargs: dict, accura
 # {var: {lb, ub, dv, prec}}
 
 
+
+
 def search_break_points(network: NN, property: DRLP, kwargs: dict, default_precise: float = 1e-2, verifier: str = None,
                         k_max: int = 10, k_min: int = 1, to_induct: bool = True) -> List[Tuple[DRLP, Tuple[int, bool, numpy.ndarray]]]:
     break_points = []

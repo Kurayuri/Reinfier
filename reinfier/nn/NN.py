@@ -36,5 +36,9 @@ class NN:
         
         return self.input_size,self.output_size
 
+    def to_torch(self):
+        import onnx2torch
+        return onnx2torch.convert(self.obj)
+
     def __str__(self):
         return self.path

@@ -1,12 +1,13 @@
 from ..drlp.DRLP import DRLP
 from ..nn.NN import NN
+from ..dummy.classes import *
 from ..import nn
 from ..import dnnv
 from ..import drlp
-from .import lib
-from typing import Tuple, List, Callable, Union
+from ..import util
+from typing import Tuple, List, Callable, Union, Dict
 from scipy.spatial import distance
-
+import torch as th
 
 def answer_intuitiveness_examination(inline_break_points: List[List]) -> Tuple[bool, List[bool]]:
     ans = []
@@ -79,3 +80,50 @@ def answer_importance_analysis(inline_break_points: List[List], dist: Union[str,
                 min_obj = (vector, break_point)
 
     return min_obj[0], min_val, min_obj[1]
+
+def measure_grads(network: NN, input, index, lower, upper, precision):
+    model = network.to_torch()
+    model.eval()
+    
+    grads = []
+
+    if lower < upper:
+        vals = util.prange(lower, upper, precision)
+    else:
+        vals = [lower]
+    input = th.tensor(input, dtype=th.float32)
+    for val in vals:
+        _input_ = input.clone().detach()
+        _input_[index] = val
+        _input_.requires_grad = True
+
+        output = model(_input_)
+        
+        model.zero_grad()
+        output.backward()
+        grads.append(_input_.grad[index].item())
+    integral = sum(grads) * precision if len(grads) > 1 else grads[0]
+    return grads, integral
+
+def measure_sensitivity(network: NN, input, index, lower, upper, precision):
+    grads, integral = measure_grads(network, input, index, lower, upper, precision)
+    curr_sum = 0.0
+    max_sum = 0.0
+    max_idx = 0
+    min_sum = 0.0
+    min_idx = 0
+
+    for idx in range(len(grads)):
+        curr_sum += grads[idx]
+        max_sum, max_idx = (curr_sum, idx) if curr_sum > max_sum else (max_sum, max_idx)
+        min_sum, min_idx = (curr_sum, idx) if curr_sum < min_sum else (min_sum, min_idx)
+    max_val = lower + precision*max_idx
+    min_val = lower + precision*min_idx
+    max_sum, min_sum = (max_sum*precision,min_sum*precision) if len(grads) > 1 else (max_sum, min_sum)
+    return (max_sum, max_val), (min_sum, min_val)
+
+    
+
+
+
+
