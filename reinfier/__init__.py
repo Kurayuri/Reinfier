@@ -8,7 +8,7 @@ from .alg import *
 from .nn import NN
 
 from .import alg
-from .import dnnv
+from .import interface
 from .import drlp
 from .import interpretor
 from .import nn

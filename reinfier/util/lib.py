@@ -22,6 +22,10 @@ def get_savepath(filename, step: int, filename_extension: str):
         filename= "%s.%s"%("@".join(filename),filename_extension)
         return os.path.join(Setting.TmpPath, filename)
 
+def get_savepath_container(basename, extension):
+    filename=f'{basename}#0_{str(time.time()).replace(".", "")}.{extension}'
+    return os.path.join(Setting.ContainerTmpPath,filename)
+
 
 def log(*args, level=CONSTANT.DEBUG, style=CONSTANT.STYLE_RESET,end:str="\n"):
     if len(args) == 1 and (isinstance(args[0], tuple) or isinstance(args[0], list)):

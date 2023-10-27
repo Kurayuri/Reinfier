@@ -2,7 +2,7 @@ from ..drlp.DRLP import DRLP
 from ..nn.NN import NN
 from ..import CONSTANT
 from ..import Setting
-from ..import dnnv
+from ..import interface
 from ..import drlp
 from ..import util
 from ..import nn
@@ -54,7 +54,7 @@ def select_verifier(networks: Union[NN, List[NN]], properties: Union[DRLP, List[
         for j in range(0, num):
             network = networks[j][nn.lib.is_branchable(verifier)]
             property = properties[j]
-            runable, result, time, __ = dnnv.booter.boot_dnnv(
+            runable, result, time, __ = interface.dnnv.boot(
                 network=network, property=property, verifier=verifier)
             status[verifier]["log"].append({
                 "network": network.path,

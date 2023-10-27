@@ -9,7 +9,7 @@ from ..import drlp
 from ..import util
 from ..import alg
 from ..import nn
-from typing import Callable, Dict, List, Set, Union, Tuple
+from typing import Callable, Dict, List, Set, Union, Tuple,Iterable
 from collections import namedtuple
 # from bayes_opt import BayesianOptimization
 import numpy as np
@@ -41,28 +41,38 @@ class Reintrainer:
     IS_VIOLATED_FUNC_ID = "is_violated"
 
     REWARD_API_FILENAME = "reward_api.py"
-    NORM_P1 = 1
-    NORM_P2 = 2
-    ALPHA = 4
 
-    def __init__(self, properties: List[DRLP],
-                 train_api: Union[Callable, str, Tuple[str, str]],
+    HP_NORM_P1 = "NORM_P1"
+    HP_NORM_P2 = "NORM_P2"
+    HP_ALPHA = "ALPHA"
+
+    def __init__(self, properties: Iterable[DRLP],
+                 train_api: Union[Callable, str],
                  save_dirpath: str,
                  verifier: str,
-                 onnx_filename: str = "model.onnx",
                  init_model_dirpath: str = None,
                  round_exsited: int = -1,
-                 reward_api_type: str = None,
-                 test_api: Union[Callable, str, Tuple[str, str]] = None,
+                 reward_api_type: type = str,
+                 test_api: Union[Callable, str] = None,
+                 onnx_filename: str = "model.onnx",
                  test_log_filename: str = "test.log",
                  verify_log_filename: str = "verify.log",
                  time_log_filename: str = "time.log",
-                 curriculum_api: Callable = None
+                 hyperparameters: dict = {},
+                 curriculum_api: Callable = None,
                  ):
         # Proeprty
         self.properties = properties
         self.properties_apply = []
         self.verifier = verifier
+
+        # Hyperparameter
+        self.HPS = {self.HP_NORM_P1:1, 
+                    self.HP_NORM_P2:2,
+                    self.HP_ALPHA:20}
+        
+        for k,v in hyperparameters.items():
+            self.HPS[k] = v
 
         # External API
         self.curriculum_api = curriculum_api
@@ -70,17 +80,20 @@ class Reintrainer:
         self.test_api = test_api
 
         # Internal API
+        self.reward_api = None
         if reward_api_type:
-            if reward_api_type == "Callable":
-                self.reward_api = self.RewardAPI
-            elif reward_api_type == "str":
+            if reward_api_type == callable:
+                self.reward_api = self.maker_RewardAPI()
+            elif reward_api_type == str:
                 self.reward_api = self.REWARD_API_FILENAME
-        else:
-            if isinstance(self.train_api, Callable):
-                self.reward_api = self.RewardAPI
-            elif isinstance(self.train_api, str) or \
-                    isinstance(self.train_api, Tuple):
-                self.reward_api = self.REWARD_API_FILENAME
+
+        # else:
+        #     if isinstance(self.train_api, Callable):
+        #         self.reward_api = self.maker_RewardAPI()
+        #     elif isinstance(self.train_api, str) or \
+        #             isinstance(self.train_api, Tuple):
+        #         self.reward_api = self.REWARD_API_FILENAME
+
 
         # Resume
         self.save_dirpath = save_dirpath
@@ -125,6 +138,7 @@ class Reintrainer:
         self.property_statics = [None for i in range(len(self.properties))]
 
         # self.model_select = 'latest'
+
 
     def train(self, round: int, cycle: int):
 
@@ -213,11 +227,14 @@ class Reintrainer:
 
     def generate_constant(self):
         # TODO
+        if not self.reward_api:
+            return
         for i in range(len(self.properties)):
             code,dynamics,statics = self.get_constraint(self.properties[i])
             self.property_dynamics[i] = dynamics
             self.property_statics[i] = statics
-        with open(os.path.join(self.next_model_dirpath, self.reward_api), "w") as f:
+
+        with open(os.path.join(self.next_model_dirpath, self.REWARD_API_FILENAME), "w") as f:
             f.write(code)
 
         exec(code)
@@ -226,9 +243,23 @@ class Reintrainer:
         return code
 
     def generate_reward(self, to_append: bool = True):
+        if not self.reward_api:
+            return
 
         dynamics = self.property_dynamics[0][0]
         statics = self.property_statics[0][0]
+
+        # TODO for Aurora
+        for i in range(10):
+            idx = i*3+0
+            dk = dynamics[idx]
+            statics[idx] = Static(dk.lower,dk.upper,dk.lower_closed,dk.upper_closed)
+            dynamics.pop(idx)
+            idx  = i*3+1
+            dk= dynamics[idx]
+            statics[idx] = Static(dk.lower,dk.upper,dk.lower_closed,dk.upper_closed)
+            dynamics.pop(idx)
+        ###########
 
         mode = "a+"
         if not to_append:
@@ -262,9 +293,9 @@ class Reintrainer:
 
         get_reward_code = f'''
 def {self.GET_REWARD_FUNC_ID}({self.GET_REWARD_FUNC_PARA_X_ID}, {self.GET_REWARD_FUNC_PARA_Y_ID}, {self.GET_REWARD_FUNC_PARA_REWARD_ID}, {self.GET_REWARD_FUNC_PARA_VIOLATED_ID}):
-    p1 = {self.NORM_P1}
-    p2 = {self.NORM_P2}
-    alpha = {self.ALPHA}
+    p1 = {self.HPS[self.HP_NORM_P1]}
+    p2 = {self.HPS[self.HP_NORM_P2]}
+    alpha = {self.HPS[self.HP_ALPHA]}
         
     def dist(val,lower, upper, mid):
         if val > upper or val < lower:
@@ -282,13 +313,14 @@ def {self.GET_REWARD_FUNC_ID}({self.GET_REWARD_FUNC_PARA_X_ID}, {self.GET_REWARD
         sum_2 = {sum_weight}
         Dist_x = (sum_1)**(1/p2)/sum_2
         Fs = - 1 * Dist_x
-        reward = reward + Fs * alpha
+        # reward = reward + Fs * alpha
+        reward = - 4.5
     else:
         reward = reward
     return reward
 '''
 
-        with open(os.path.join(self.next_model_dirpath, self.reward_api), mode) as f:
+        with open(os.path.join(self.next_model_dirpath, self.REWARD_API_FILENAME), mode) as f:
             f.write(get_reward_code)
 
         exec(get_reward_code)
@@ -524,9 +556,14 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
             util.log(test_result, level=CONSTANT.INFO)
 
     def maker_RewardAPI(self):
+        def _maker_Is_Violated_Func(x ,y):
+            return self.Is_Violated_Func(x,y)
+        def _maker_Get_Reward_Func(x, y, reward, violated):
+            return self.Get_Reward_Func(x,y,reward,violated)
+
         return {
-            self.IS_VIOLATED_FUNC_ID: lambda x, y: self.Get_Reward_Func(x,y),
-            self.GET_REWARD_FUNC_ID: lambda x, y, reward, violated: self.Get_Reward_Func(x,y,reward,violated)
+            self.IS_VIOLATED_FUNC_ID: _maker_Is_Violated_Func ,
+            self.GET_REWARD_FUNC_ID: _maker_Get_Reward_Func
         }
 
     def Get_Reward_Func(self, x, y, reward, violated):

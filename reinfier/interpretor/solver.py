@@ -2,7 +2,6 @@ from ..drlp.DRLP import DRLP
 from ..nn.NN import NN
 from ..dummy.classes import *
 from ..import nn
-from ..import dnnv
 from ..import drlp
 from ..import util
 from typing import Tuple, List, Callable, Union, Dict

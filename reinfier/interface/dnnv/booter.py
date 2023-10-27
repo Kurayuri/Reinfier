@@ -1,9 +1,9 @@
-from ..drlp.DNNP import DNNP
-from ..nn.NN import NN
-from ..import CONSTANT
-from ..import Setting
-from ..import util
-from ..import nn
+from ...drlp.DNNP import DNNP
+from ...nn.NN import NN
+from ...import CONSTANT
+from ...import Setting
+from ...import util
+from ...import nn
 from typing import Tuple
 import numpy as np
 import subprocess
@@ -94,7 +94,7 @@ def exec_docker(property_path,network_path):
         ]
     output_bytes = subprocess.run(cmd,capture_output=True, text=True)
 
-def boot_dnnv(network: NN, property: DNNP, verifier: str,
+def boot(network: NN, property: DNNP, verifier: str,
               network_alias: str = "N", violation: str = None) -> Tuple[bool, bool, float, np.ndarray]:
     network_path = network.path
     property_path = property.path
@@ -113,7 +113,7 @@ def boot_dnnv(network: NN, property: DNNP, verifier: str,
 
     dnnv = [ "docker",
             "exec",
-            Setting.ContainerName,
+            Setting.ContainerNames[CONSTANT.DNNV],
             "/home/dnnv/.venv/bin/dnnv"
     ]
 
