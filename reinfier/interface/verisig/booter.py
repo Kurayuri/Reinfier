@@ -118,7 +118,9 @@ def boot(network: NN, property: DNNP, violation: str = None) -> Tuple[bool, bool
             "-t","32"
     ]
 
-    property_path = "/home/verisig_models/ex1_tanh/ex1_tanh_tmp.model"
+    property_path = "/home/verisig_models/ex1_tanh/ex1_tanh_p5.model"
+    property_path = "/home/verisig_models/ex2_tanh/ex2_tanh_p6.model"
+    property_path = "/home/verisig_models/tora_tanh/tora_tanh_p8.model"
 
     cmd = executable + [
            network_path,
@@ -144,6 +146,7 @@ def boot(network: NN, property: DNNP, violation: str = None) -> Tuple[bool, bool
             for chunk in proc:
                 stdout, stderr = chunk
                 # print(stdout)
+                util.log(stdout)
         except Exception as e:
             util.log((e), level=CONSTANT.INFO)
         # %% Check output
@@ -177,9 +180,10 @@ def boot(network: NN, property: DNNP, violation: str = None) -> Tuple[bool, bool
         violation = None
         if runable == True:
             if result == False:
-                violation = np.load(violation_path)
+                # violation = np.load(violation_path)
+                violation = None
                 util.log(("False"), level=CONSTANT.WARNING)
-                nn.onnx_runner.run_onnx(network=network_path, input=violation)
+                # nn.onnx_runner.run_onnx(network=network_path, input=violation)
             else:
                 util.log(("True"), level=CONSTANT.WARNING)
         else:

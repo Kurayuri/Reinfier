@@ -46,6 +46,9 @@ class Reintrainer:
     HP_NORM_P2 = "NORM_P2"
     HP_ALPHA = "ALPHA"
 
+
+    MODULES = ["生成、验证（验证后反例输入、验证后环境分布改变细分、验证后初始状态细分）、训练（主动添加触发情况）、测试（课程学习）"]
+
     def __init__(self, properties: Iterable[DRLP],
                  train_api: Union[Callable, str],
                  save_dirpath: str,
@@ -163,10 +166,6 @@ class Reintrainer:
 
             self.next_model_dirpath = self.make_next_model_dir(self.round)
 
-            # %% Select
-            # optimizer = BayesianOptimization()
-            # optimizer.maximize()
-
             # %% Train
             util.log_prompt(3, "Generation Part", style=CONSTANT.STYLE_BLUE)
 
@@ -227,6 +226,7 @@ class Reintrainer:
 
     def generate_constant(self):
         # TODO
+        return
         if not self.reward_api:
             return
         for i in range(len(self.properties)):
@@ -234,8 +234,8 @@ class Reintrainer:
             self.property_dynamics[i] = dynamics
             self.property_statics[i] = statics
 
-        with open(os.path.join(self.next_model_dirpath, self.REWARD_API_FILENAME), "w") as f:
-            f.write(code)
+        # with open(os.path.join(self.next_model_dirpath, self.REWARD_API_FILENAME), "w") as f:
+        #     f.write(code)
 
         exec(code)
         self.Is_Violated_Func_Func=locals()[self.IS_VIOLATED_FUNC_ID]
@@ -245,81 +245,94 @@ class Reintrainer:
     def generate_reward(self, to_append: bool = True):
         if not self.reward_api:
             return
+        mode = "a+" if to_append else "w"
 
-        dynamics = self.property_dynamics[0][0]
-        statics = self.property_statics[0][0]
+#         dynamics = self.property_dynamics[0][0]
+#         statics = self.property_statics[0][0]
 
-        # TODO for Aurora
-        for i in range(10):
-            idx = i*3+0
-            dk = dynamics[idx]
-            statics[idx] = Static(dk.lower,dk.upper,dk.lower_closed,dk.upper_closed)
-            dynamics.pop(idx)
-            idx  = i*3+1
-            dk= dynamics[idx]
-            statics[idx] = Static(dk.lower,dk.upper,dk.lower_closed,dk.upper_closed)
-            dynamics.pop(idx)
-        ###########
+#         # TODO for Aurora
+#         for i in range(10):
+#             idx = i*3+0
+#             dk = dynamics[idx]
+#             statics[idx] = Static(dk.lower,dk.upper,dk.lower_closed,dk.upper_closed)
+#             dynamics.pop(idx)
+#             idx  = i*3+1
+#             dk= dynamics[idx]
+#             statics[idx] = Static(dk.lower,dk.upper,dk.lower_closed,dk.upper_closed)
+#             dynamics.pop(idx)
+#         ###########
 
-        mode = "a+"
-        if not to_append:
-            mode = "w"
 
-        to_measure = True
 
-        if self.curr_model_dirpath and to_measure:
-            network = NN(self.curr_model_path)
-            for idx, dynamic in dynamics.items():
-                dynamic.lower_rho = self.measure_rho(network, dynamics,statics, idx, True)
-                dynamic.upper_rho = self.measure_rho(network, dynamics,statics,  idx, False)
-                dynamic.weight = (dynamic.lower_rho + dynamic.upper_rho) / 2
-        else:
-            for idx, dynamic in dynamics.items():
-                dynamic.lower_rho = 1
-                dynamic.upper_rho = 1
-                dynamic.weight = 1
+#         to_measure = True
 
-        util.log("Importance Weight:", {idx:dynamic.weight for idx,dynamic in dynamics.items()}, level=CONSTANT.WARNING, style=CONSTANT.STYLE_RED)
+#         if self.curr_model_dirpath and to_measure:
+#             network = NN(self.curr_model_path)
+#             for idx, dynamic in dynamics.items():
+#                 dynamic.lower_rho = self.measure_rho(network, dynamics,statics, idx, True)
+#                 dynamic.upper_rho = self.measure_rho(network, dynamics,statics,  idx, False)
+#                 dynamic.weight = (dynamic.lower_rho + dynamic.upper_rho) / 2
+#         else:
+#             for idx, dynamic in dynamics.items():
+#                 dynamic.lower_rho = 1
+#                 dynamic.upper_rho = 1
+#                 dynamic.weight = 1
 
-        dist_srcs = []
+#         util.log("Importance Weight:", {idx:dynamic.weight for idx,dynamic in dynamics.items()}, level=CONSTANT.WARNING, style=CONSTANT.STYLE_RED)
 
-        sum_weight = 0
-        for idx, dynamic in dynamics.items():
-            mid = (dynamic.lower_rho * dynamic.lower + dynamic.upper_rho * dynamic.upper) / (dynamic.lower_rho + dynamic.upper_rho)
-            src = f"dists_x[{idx}] = {dynamic.weight}*dist(x[0][{idx}],{dynamic.lower},{dynamic.upper},{mid})"
-            dist_srcs.append(src)
+#         dist_srcs = []
 
-            sum_weight += dynamic.weight
+#         sum_weight = 0
+#         for idx, dynamic in dynamics.items():
+#             mid = (dynamic.lower_rho * dynamic.lower + dynamic.upper_rho * dynamic.upper) / (dynamic.lower_rho + dynamic.upper_rho)
+#             src = f"dists_x[{idx}] = {dynamic.weight}*dist(x[0][{idx}],{dynamic.lower},{dynamic.upper},{mid})"
+#             dist_srcs.append(src)
 
-        get_reward_code = f'''
-def {self.GET_REWARD_FUNC_ID}({self.GET_REWARD_FUNC_PARA_X_ID}, {self.GET_REWARD_FUNC_PARA_Y_ID}, {self.GET_REWARD_FUNC_PARA_REWARD_ID}, {self.GET_REWARD_FUNC_PARA_VIOLATED_ID}):
-    p1 = {self.HPS[self.HP_NORM_P1]}
-    p2 = {self.HPS[self.HP_NORM_P2]}
-    alpha = {self.HPS[self.HP_ALPHA]}
+#             sum_weight += dynamic.weight
+
+#         get_reward_code = f'''
+# def {self.GET_REWARD_FUNC_ID}({self.GET_REWARD_FUNC_PARA_X_ID}, {self.GET_REWARD_FUNC_PARA_Y_ID}, {self.GET_REWARD_FUNC_PARA_REWARD_ID}, {self.GET_REWARD_FUNC_PARA_VIOLATED_ID}):
+#     p1 = {self.HPS[self.HP_NORM_P1]}
+#     p2 = {self.HPS[self.HP_NORM_P2]}
+#     alpha = {self.HPS[self.HP_ALPHA]}
         
-    def dist(val,lower, upper, mid):
-        if val > upper or val < lower:
-            return 0
+#     def dist(val,lower, upper, mid):
+#         if val > upper or val < lower:
+#             return 0
 
-        if val > mid:
-            return ((upper-val)/(upper-mid))**p1
-        else:
-            return ((val-lower)/(mid-lower))**p1
+#         if val > mid:
+#             return ((upper-val)/(upper-mid))**p1
+#         else:
+#             return ((val-lower)/(mid-lower))**p1
 
-    if {self.GET_REWARD_FUNC_PARA_VIOLATED_ID}:
-        dists_x = dict()
-''' + "".join(["        " + srs + "\n" for srs in dist_srcs]) + f'''
-        sum_1 = sum([dist**p2 for dist in dists_x.values()])
-        sum_2 = {sum_weight}
-        Dist_x = (sum_1)**(1/p2)/sum_2
-        Fs = - 1 * Dist_x
-        # reward = reward + Fs * alpha
-        reward = - 4.5
-    else:
-        reward = reward
-    return reward
+#     if {self.GET_REWARD_FUNC_PARA_VIOLATED_ID}:
+#         dists_x = dict()
+# ''' + "".join(["        " + srs + "\n" for srs in dist_srcs]) + f'''
+#         sum_1 = sum([dist**p2 for dist in dists_x.values()])
+#         sum_2 = {sum_weight}
+#         Dist_x = (sum_1)**(1/p2)/sum_2
+#         Fs = - 1 * Dist_x
+#         # reward = reward + Fs * alpha
+#         reward = - 4.5
+#     else:
+#         reward = reward
+#     return reward
+# ''' 
+        get_reward_code = f'''
+def {self.IS_VIOLATED_FUNC_ID}(x, y):
+    # if np.all([[0.2,0.3]]>x) and np.all([[0.0,0.05]]<x):
+    #     return False, False
+    # else:
+    return True, True
+
+def {self.GET_REWARD_FUNC_ID}(x, y, reward, violated):
+    from math import sqrt
+    # return reward - 2*sqrt((min(abs(x[0,0]-0.2),abs(x[0,0]-0))/5)**2 + (min(abs(x[0,1] - 0.05),abs(x[0,1] - 0.3)))**2)
+    # return reward - 0.5*(min(abs(x[0,0]-0.2),abs(x[0,0]-0))+(min(abs(x[0,1] - 0.05),abs(x[0,1] - 0.3)))) b1_p4
+    # return reward  - 4/((min(abs(x[0,0]-1.5),abs(x[0,0]+1.50))+(min(abs(x[0,1]-1.5),abs(x[0,1] + 1.5))))+1) b2_p5
+    return reward - 4/(min(abs(x[0,0]-1),abs(x[0,0]--1)) + min(abs(x[0,1] - 1),abs(x[0,1] - -1)) + min(abs(x[0,1] -1.57),abs(x[0,1] --1.57)) + min(abs(x[0,1] -1),abs(x[0,1] - -1)))
+    # return reward 
 '''
-
         with open(os.path.join(self.next_model_dirpath, self.REWARD_API_FILENAME), mode) as f:
             f.write(get_reward_code)
 
@@ -579,6 +592,11 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
         code = drlp.parse_constaint_to_code(constraint,dynamics,statics)
         return code, dynamics, statics
 
+
+    def module_call(self,module):
+        module_name, module_level, module_call = module
+        util.log_prompt(module_level, f"{module_name} Part", style=CONSTANT.STYLE_BLUE)
+        
 
 def natural_sort(l):
     def convert(text): return int(text) if text.isdigit() else text.lower()
