@@ -71,12 +71,10 @@ def reach(network: NN, property: DRLP, k_max: int = 10, k_min: int = 1):
     return result, 1, violation
 
 
-def verify(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1, to_induct=True) -> Tuple[int, bool, numpy.ndarray]:
-    reachability = True
+def verify(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1, to_induct=True, reachability=False) -> Tuple[bool, int, numpy.ndarray]:
     if reachability:
         return reach(network, property,  k_max=k_max, k_min=k_min)
-    
-    if to_induct:
+    elif to_induct:
         return k_induction(network, property, verifier=verifier, k_max=k_max, k_min=k_min)
     else:
         return bmc(network, property, verifier=verifier, k_max=k_max, k_min=k_min)

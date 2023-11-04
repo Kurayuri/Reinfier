@@ -4,6 +4,7 @@ from ...import CONSTANT
 from ...import Setting
 from ...import util
 from ...import nn
+from ..import dk
 from typing import Tuple
 import numpy as np
 import subprocess
@@ -96,10 +97,25 @@ def exec_docker(property_path,network_path):
 
 def boot(network: NN, property: DNNP, verifier: str,
               network_alias: str = "N", violation: str = None) -> Tuple[bool, bool, float, np.ndarray]:
-    network_path = network.path
-    property_path = property.path
+    
+    containor_name = Setting.ContainerNames[CONSTANT.DNNV]
+    run_dk=True
+
     if violation is None:
-        violation_path = util.lib.get_savepath([network_path, property_path], None, "npy")
+        violation_path = util.lib.get_savepath([network.path, property.path], None, "npy")
+
+    if run_dk:
+        save_dirpath=util.lib.get_savepath_container()
+        network_path=os.path.join(save_dirpath,os.path.basename(network.path))
+        property_path=os.path.join(save_dirpath,os.path.basename(property.path))
+        _violation_path=violation_path
+        violation_path = os.path.join(save_dirpath,os.path.basename(violation_path))
+        dk.copy_in(containor_name,[network.path, property.path], save_dirpath)
+    else:
+        network_path = network.path
+        property_path = property.path
+
+
 
     if (network.obj is None and network.path is None) or \
             (property.obj is None and property.path is None):
@@ -109,27 +125,21 @@ def boot(network: NN, property: DNNP, verifier: str,
     if verifier not in CONSTANT.VERIFIERS:
         raise AssertionError(f"Unsupported verifier: {verifier}")
 
-    verifier = "--" + verifier
-
-    dnnv = [ "docker",
-            "exec",
-            Setting.ContainerNames[CONSTANT.DNNV],
-            "/home/dnnv/.venv/bin/dnnv"
-    ]
-
-    dnnv = ["dnnv"]
-    cmd = dnnv + [
+    executable = [". /home/dnnv/.venv/bin/activate && /home/dnnv/.venv/bin/dnnv"]
+    cmd = executable + [
            property_path,
            "--network", network_alias, network_path,
-           verifier,
+           f"--{verifier}",
            "--save-violation", violation_path
            ]
-    cmd_readable = dnnv + [
+    cmd_readable = executable + [
            f"'{property_path}'",
            "--network", network_alias, f"'{network_path}'",
-           verifier,
+           f"--{verifier}",
            "--save-violation", f"'{violation_path}'"
            ]
+
+
 
     if os.path.exists(violation_path):
         os.remove(violation_path)
@@ -139,42 +149,36 @@ def boot(network: NN, property: DNNP, verifier: str,
         util.log("Single DNN Query Verifying...", level=CONSTANT.INFO)
         util.log((" ".join(cmd_readable)), level=CONSTANT.INFO)
 
-        # %% Call DNNV from fucntion
-
-        # # Call DNNV
-        # sys.argv = cmd
-        # sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])
-
-        # dnnv_out_filename="dnnv.out"
-        # dnnv_out=open(dnnv_out_filename,"w")
-        # with util.io.output_wrapper(dnnv_out):
-        #     dnnv_main()
-
-        # dnnv_out.close()
-        # with open(dnnv_out_filename,"r") as f:
-        #     x=f.read()
-        # os.remove(dnnv_out_filename)
-        # x = x.split("\n")
-
-        # %% Call DNNV from cmd
-
         myenv = os.environ.copy()
-        if 'VIRTUAL_ENV' in os.environ:
-            myenv['PATH'] = ':'.join(
-                [x for x in os.environ['PATH'].split(':')
-                    if x != os.path.join(os.environ['VIRTUAL_ENV'], 'bin')])
 
-        try:
-            # x = subprocess.check_output(cmd,stderr=subprocess.STDOUT)
-            proc = subprocess.run(cmd, capture_output=True, text=True)
-            dnnv_stdout = proc.stdout
-            dnnv_stderr = proc.stderr
-            # util.log((dnnv_stdout),level=CONSTANT.INFO)
-            # util.log((dnnv_stderr),level=CONSTANT.INFO)
-            dnnv_stdout = dnnv_stdout.split("\n")
-            dnnv_stderr = dnnv_stderr.split("\n")
-        except Exception as e:
-            util.log((e), level=CONSTANT.INFO)
+        if run_dk:
+            try:
+                exit_code, proc = dk.exec(containor_name, cmd)
+                stdout = []
+                stderr = []
+                for chunk in proc:
+                    stdout, stderr = chunk
+                    # print(stdout)
+                    util.log(stdout)
+                    util.log(stderr)
+            except Exception as e:
+                util.log((e), level=CONSTANT.INFO)
+        else:
+            if 'VIRTUAL_ENV' in os.environ:
+                myenv['PATH'] = ':'.join(
+                    [x for x in os.environ['PATH'].split(':')
+                        if x != os.path.join(os.environ['VIRTUAL_ENV'], 'bin')])
+
+            try:
+                proc = subprocess.run(cmd, capture_output=True, text=True)
+                stdout = proc.stdout
+                stderr = proc.stderr
+                util.log(stdout)
+                util.log(stderr)
+                stdout = stdout.split("\n")
+                stderr = stderr.split("\n")
+            except Exception as e:
+                util.log((e), level=CONSTANT.INFO)
 
         # %% Check DNNV output
 
@@ -186,8 +190,8 @@ def boot(network: NN, property: DNNP, verifier: str,
 
         # Check dnnv_stderr
         try:
-            for i in range(len(dnnv_stderr) - 1, -1, -1):
-                if is_to_retry(dnnv_stderr[i]):
+            for i in range(len(stderr) - 1, -1, -1):
+                if is_to_retry(stderr[i]):
                     to_retry = True
                     break
         except BaseException:
@@ -198,8 +202,8 @@ def boot(network: NN, property: DNNP, verifier: str,
             continue
 
         # %% Check dnnv_stdout
-        ans_gotten, runable, result, time = extract_stdout_ans(dnnv_stdout)
-        log_dnnv_output(dnnv_stdout, dnnv_stderr, ans_gotten)
+        ans_gotten, runable, result, time = extract_stdout_ans(stdout)
+        log_dnnv_output(stdout, stderr, ans_gotten)
 
         util.log(("## Ans:"), level=CONSTANT.WARNING)
         util.log(("Runable:", runable, "   Result:", result, "   Time:", time), level=CONSTANT.WARNING)
@@ -207,13 +211,15 @@ def boot(network: NN, property: DNNP, verifier: str,
         violation = None
         if runable == True:
             if result == False:
+                if run_dk:
+                    dk.copy_out(containor_name,violation_path,Setting.TmpPath)
+                    violation_path=_violation_path
+                    network_path=network.path
                 violation = np.load(violation_path)
                 util.log(("False"), level=CONSTANT.WARNING)
-                # util.log(("SAT"), level=CONSTANT.WARNING)
                 nn.onnx_runner.run_onnx(network=network_path, input=violation)
             else:
                 util.log(("True"), level=CONSTANT.WARNING)
-                # util.log(("UNSAT"), level=CONSTANT.WARNING)
         else:
             util.log(("Error"), level=CONSTANT.WARNING)
         break

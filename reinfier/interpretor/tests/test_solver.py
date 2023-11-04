@@ -1,9 +1,9 @@
-from ... import test
+from ... import res
 from .. import solver
 import pytest
 
 def test_measure_sensitivity():
-    network,__ = test.get_example()
+    network,__ = res.get_example()
     input = [1,2]
     index = 0
     lower = 1

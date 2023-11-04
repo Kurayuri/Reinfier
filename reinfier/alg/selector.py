@@ -45,7 +45,7 @@ def select_verifier(networks: Union[NN, List[NN]], properties: Union[DRLP, List[
     status = {}
     num = len(networks)
     for verifier in verifiers:
-        util.log(("Testing...", verifier), level=CONSTANT.CRITICAL)
+        util.log(("Testing...", verifier), level=CONSTANT.ERROR)
         status[verifier] = {
             "runable": True,
             "time_sum": 0.0,
@@ -56,6 +56,8 @@ def select_verifier(networks: Union[NN, List[NN]], properties: Union[DRLP, List[
             property = properties[j]
             runable, result, time, __ = interface.dnnv.boot(
                 network=network, property=property, verifier=verifier)
+            util.log("    ",runable, result, time,level=CONSTANT.ERROR)
+            
             status[verifier]["log"].append({
                 "network": network.path,
                 "property": property.path,

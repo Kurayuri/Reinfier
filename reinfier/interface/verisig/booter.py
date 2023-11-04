@@ -69,31 +69,6 @@ def extract_stdout_ans(stdout):
         runable = False
     return ans_gotten, runable, result, time
 
-def exec_docker(property_path,network_path):
-    cmd = [
-        "docker",
-        "exec",
-        Setting.ContainerName,
-        "mkdir",
-        Setting.TmpPath
-        ]
-    output_bytes = subprocess.run(cmd,capture_output=True, text=True)
-
-    cmd = [
-        "docker",
-        "cp",
-        property_path,
-        f"{Setting.ContainerName}:/home/dnnv/{property_path}"
-        ]
-    output_bytes = subprocess.run(cmd,capture_output=True, text=True)
-
-    cmd = [
-        "docker",
-        "cp",
-        network_path,
-        f"{Setting.ContainerName}:/home/dnnv/{network_path}"
-        ]
-    output_bytes = subprocess.run(cmd,capture_output=True, text=True)
 
 def boot(network: NN, property: DNNP, violation: str = None) -> Tuple[bool, bool, float, np.ndarray]:
     network_path = network.path

@@ -12,7 +12,7 @@ from .import interface
 from .import drlp
 from .import interpretor
 from .import nn
-from .import test
+from .import res
 from .import reintrainer
 
 from .Setting import *

@@ -22,8 +22,12 @@ def get_savepath(filename, step: int, filename_extension: str):
         filename= "%s.%s"%("@".join(filename),filename_extension)
         return os.path.join(Setting.TmpPath, filename)
 
-def get_savepath_container(basename, extension):
-    filename=f'{basename}#0_{str(time.time()).replace(".", "")}.{extension}'
+def get_savepath_container(basename=None, extension=None):
+    filename=""
+    if basename:
+        filename+=f'{basename}#0_{str(time.time()).replace(".", "")}'
+    if extension:
+        filename+=f".{extension}"
     return os.path.join(Setting.ContainerTmpPath,filename)
 
 
