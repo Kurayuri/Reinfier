@@ -93,9 +93,9 @@ def boot(network: NN, property: DNNP, violation: str = None) -> Tuple[bool, bool
             "-t","32"
     ]
 
-    property_path = "/home/verisig_models/ex1_tanh/ex1_tanh_p5.model"
     property_path = "/home/verisig_models/ex2_tanh/ex2_tanh_p6.model"
     property_path = "/home/verisig_models/tora_tanh/tora_tanh_p8.model"
+    property_path = "/home/verisig_models/ex1_tanh/ex1_tanh_p5.model"
 
     cmd = executable + [
            network_path,
