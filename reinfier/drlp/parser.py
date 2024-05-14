@@ -4,7 +4,7 @@ from .DRLPTransformer import *
 from .DRLP import DRLP
 from .DNNP import DNNP
 from .lib import *
-from typing import List
+from typing import List, Tuple, Dict
 import astpretty
 import astor
 import ast
@@ -27,7 +27,8 @@ def parse_drlp(property: DRLP, depth: int, kwgs: dict = {}) -> DNNP:
     # util.log(astpretty.pformat(ast_root_p, show_offsets=False))
     # pprint(ast_root_p)
 
-    (ast_root_p, ast_root_q), input_size, output_size = transform_pipeline((ast_root_p, ast_root_q), depth, kwgs)
+    (ast_root_p, ast_root_q), input_size, output_size = transform_pipeline(
+        (ast_root_p, ast_root_q), depth, kwgs)
 
     # Make and save
     dnnp_root = make_dnnp(ast_root_p, ast_root_q)
@@ -51,18 +52,22 @@ def parse_drlp_induction(property: DRLP, depth: int, kwargs: dict = {}) -> DNNP:
     ast_root_q = ast.parse(drlp_q)
     # util.log(astpretty.pformat(ast_root_p,show_offsets=False))
 
-    (ast_root_p, ast_root_q), input_size, output_size = transform_pipeline((ast_root_p, ast_root_q), depth, kwargs)
+    (ast_root_p, ast_root_q), input_size, output_size = transform_pipeline(
+        (ast_root_p, ast_root_q), depth, kwargs)
 
-    transformer_indction = DRLPTransformer_Induction(depth, input_size, output_size, to_fix_subscript=False)
+    transformer_indction = DRLPTransformer_Induction(
+        depth, input_size, output_size, to_fix_subscript=False)
     ast_root_p = transformer_indction.visit(ast_root_p)
 
     # Assume i~i+k holds
     depth -= 1
 
     ast_root_q_ = ast.parse(drlp_q)
-    (ast_root_q_,), __, __ = transform_pipeline((ast_root_q_,), depth, kwargs, input_size, output_size)
+    (ast_root_q_,), __, __ = transform_pipeline(
+        (ast_root_q_,), depth, kwargs, input_size, output_size)
 
-    transformer_indction = DRLPTransformer_Induction(depth, input_size, output_size, to_fix_subscript=True)
+    transformer_indction = DRLPTransformer_Induction(
+        depth, input_size, output_size, to_fix_subscript=True)
     ast_root_q_ = transformer_indction.visit(ast_root_q_)
 
     # Make and save
@@ -93,7 +98,8 @@ def parse_drlps(property: DRLP, depth: int, to_induct: bool = False, to_filter_u
         if not to_induct:
             dnnp = parse_drlp(DRLP(drlp_pq, filename=filename), depth, kwargs)
         else:
-            dnnp = parse_drlp_induction(DRLP(drlp_pq, filename=filename), depth, kwargs)
+            dnnp = parse_drlp_induction(
+                DRLP(drlp_pq, filename=filename), depth, kwargs)
 
         dnnps.append(dnnp)
 
@@ -112,7 +118,8 @@ def parse_drlps_v(property: DRLP, to_filter_unused_variables: bool = True) -> Li
     for kwargs in kwargss:
         ast_root_p = ast.parse(drlp_p)
         ast_root_q = ast.parse(drlp_q)
-        __, (ast_root_p, ast_root_q) = transform(DRLPTransformer_Concretize(kwargs=kwargs), (ast_root_p, ast_root_q))
+        __, (ast_root_p, ast_root_q) = transform(
+            DRLPTransformer_Concretize(kwargs=kwargs), (ast_root_p, ast_root_q))
 
         drlp_pqi = make_pq(ast_root_p, ast_root_q)
         util.log("## DRLP:\n", drlp_pqi)
@@ -121,7 +128,7 @@ def parse_drlps_v(property: DRLP, to_filter_unused_variables: bool = True) -> Li
     return property_pqs
 
 
-def parse_drlp_get_constraint(property: DRLP) -> DRLP:
+def parse_drlp_get_constraint(property: DRLP) -> Tuple[DRLP, Tuple[Dict[int, Dynamic], Dict[int, Dynamic]], Tuple[Dict[int, Static], Dict[int, Static]]]:
     if isinstance(property, DNNP):
         return property
     filename, drlp_vpq = read_drlp(property)
@@ -134,17 +141,20 @@ def parse_drlp_get_constraint(property: DRLP) -> DRLP:
     ast_root_p = ast.parse(drlp_p)
     ast_root_q = ast.parse(drlp_q)
 
-    transformer, (ast_root_p, ast_root_q) = transform(DRLPTransformer_Init(1, kwargs=kwargs), (ast_root_p, ast_root_q))
+    transformer, (ast_root_p, ast_root_q) = transform(
+        DRLPTransformer_Init(1, kwargs=kwargs), (ast_root_p, ast_root_q))
     input_size = transformer.input_size
     output_size = transformer.output_size
 
     # TODO
     # __, (ast_root_p, ast_root_q) = transform(DRLPTransformer_RIC(input_size, output_size), (ast_root_p, ast_root_q))
-    transformer, (ast_root_p, ast_root_q) = transform(DRLPTransformer_RSC(), (ast_root_p, ast_root_q))
-    transformer, (ast_root_p, ast_root_q) = transform(DRLPTransformer_Boundary(input_size,output_size), (ast_root_p, ast_root_q))
-    
+    transformer, (ast_root_p, ast_root_q) = transform(
+        DRLPTransformer_RSC(), (ast_root_p, ast_root_q))
+    transformer, (ast_root_p, ast_root_q) = transform(
+        DRLPTransformer_Boundary(input_size, output_size), (ast_root_p, ast_root_q))
+
     drlp_pqi = make_pq(ast_root_p, ast_root_q)
-    return DRLP(drlp_pqi, filename=filename),(transformer.input_dynamics,transformer.output_dynamics),(transformer.input_statics,transformer.output_statics)
+    return DRLP(drlp_pqi, filename=filename), (transformer.input_dynamics, transformer.output_dynamics), (transformer.input_statics, transformer.output_statics)
 
 
 def parse_constaint_to_code(property: DRLP, dynamics, statics) -> str:
@@ -155,8 +165,10 @@ def parse_constaint_to_code(property: DRLP, dynamics, statics) -> str:
 
         ast_root_p = ast.parse(drlp_p)
         ast_root_q = ast.parse(drlp_q)
-        transformer, (ast_root_p, ast_root_q) = transform(DRLPTransformer_Init(1), (ast_root_p, ast_root_q))
-        transformer, (ast_root_p, ast_root_q) = transform(DRLPTransformer_SplitCompare(), (ast_root_p, ast_root_q))
+        transformer, (ast_root_p, ast_root_q) = transform(
+            DRLPTransformer_Init(1), (ast_root_p, ast_root_q))
+        transformer, (ast_root_p, ast_root_q) = transform(
+            DRLPTransformer_SplitCompare(), (ast_root_p, ast_root_q))
 
         # Expectation if test
         values = []
@@ -200,13 +212,13 @@ def parse_constaint_to_code(property: DRLP, dynamics, statics) -> str:
         node_p_if = ast.If(
             test=node_p_test,
             body=[
-                    ast.Assign(
-                        targets=[ast.Name(id=OCCURRED_ID, ctx=ast.Store())],
-                        value=ast.Constant(value=True, kind=None),
-                        type_comment=None,
-                    ),
-                    node_q_if
-                ],
+                ast.Assign(
+                    targets=[ast.Name(id=OCCURRED_ID, ctx=ast.Store())],
+                    value=ast.Constant(value=True, kind=None),
+                    type_comment=None,
+                ),
+                node_q_if
+            ],
             orelse=[]
         )
 
@@ -222,7 +234,8 @@ def parse_constaint_to_code(property: DRLP, dynamics, statics) -> str:
                 args=ast.arguments(
                     args=[
                         ast.arg(arg=DRLPTransformer.INPUT_ID, annotation=None),
-                        ast.arg(arg=DRLPTransformer.OUTPUT_ID, annotation=None),
+                        ast.arg(arg=DRLPTransformer.OUTPUT_ID,
+                                annotation=None),
                     ],
                     defaults=[], vararg=None, kwarg=None
                 ),
@@ -239,13 +252,13 @@ def parse_constaint_to_code(property: DRLP, dynamics, statics) -> str:
                     ),
                     node_p_if,
                     ast.Return(
-                        value = ast.Tuple(
+                        value=ast.Tuple(
                             elts=[
                                 ast.Name(id=OCCURRED_ID, ctx=ast.Load()),
                                 ast.Name(id=VIOLATED_ID, ctx=ast.Load())
-                                ],
+                            ],
                             ctx=ast.Load()
-                    ))
+                        ))
                 ],
                 decorator_list=[]
             )
@@ -254,31 +267,35 @@ def parse_constaint_to_code(property: DRLP, dynamics, statics) -> str:
         return code
 
     def str_method():
-        input_srcs=[]
-        for idx,feature in {**dynamics[0],**statics[0]}.items():
-            op= ">=" if feature.lower_closed else ">"
-            input_srcs.append(f'''{DRLPTransformer.INPUT_ID}[0][{idx}] {op} {feature.lower}''')
-            op= "<=" if feature.upper_closed else "<"
-            input_srcs.append(f'''{DRLPTransformer.INPUT_ID}[0][{idx}] {op} {feature.upper}''')
-        output_srcs=[]
-        for idx,feature in {**dynamics[1],**statics[1]}.items():
-            op= ">=" if feature.lower_closed else ">"
-            output_srcs.append(f'''{DRLPTransformer.OUTPUT_ID}[0][{idx}] {op} {feature.lower}''')
-            op= "<=" if feature.upper_closed else "<"
-            output_srcs.append(f'''{DRLPTransformer.OUTPUT_ID}[0][{idx}] {op} {feature.upper}''')
+        input_srcs = []
+        for idx, feature in {**dynamics[0], **statics[0]}.items():
+            op = ">=" if feature.lower_closed else ">"
+            input_srcs.append(
+                f'''{DRLPTransformer.INPUT_ID}[0][{idx}] {op} {feature.lower}''')
+            op = "<=" if feature.upper_closed else "<"
+            input_srcs.append(
+                f'''{DRLPTransformer.INPUT_ID}[0][{idx}] {op} {feature.upper}''')
+        output_srcs = []
+        for idx, feature in {**dynamics[1], **statics[1]}.items():
+            op = ">=" if feature.lower_closed else ">"
+            output_srcs.append(
+                f'''{DRLPTransformer.OUTPUT_ID}[0][{idx}] {op} {feature.lower}''')
+            op = "<=" if feature.upper_closed else "<"
+            output_srcs.append(
+                f'''{DRLPTransformer.OUTPUT_ID}[0][{idx}] {op} {feature.upper}''')
 
-        code=f'''
+        code = f'''
 def {IS_VIOLATED_ID}({DRLPTransformer.INPUT_ID}, {DRLPTransformer.OUTPUT_ID}):
     {VIOLATED_ID} = False
     {OCCURRED_ID} = False
-    if '''+" and ".join(input_srcs)+f''' :
+    if ''' + " and ".join(input_srcs) + f''' :
         {OCCURRED_ID} = True
-        if not ('''+ " and ".join(output_srcs) +f'''):
+        if not (''' + " and ".join(output_srcs) + f'''):
             {VIOLATED_ID} = True
     return {OCCURRED_ID}, {VIOLATED_ID}
     '''
         return code
-    
+
     # return str_method()
     return ast_method()
 

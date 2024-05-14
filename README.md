@@ -24,6 +24,13 @@ Currently, DNNV main branch on [PyPI](https://pypi.org/project/dnnv/0.5.1/) has 
 pip install git+https://github.com/dlshriver/DNNV.git@develop
 ```
 
+```shell
+docker pull dlshriver/dnnv:latest
+docker run --name dnnv dlshriver/dnnv:latest tail -f /dev/null
+docker exec -it dnnv bash
+```
+
+
 
 To install any of the supported verifiers, run:
 ```shell
@@ -39,7 +46,7 @@ Usage sample files to test:
 ```python
 import reinfier as rf
 
-network, property = rf.test.get_example()
+network, property = rf.res.get_example()
 
 print(rf.verify(network, property))
 ```

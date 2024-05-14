@@ -72,7 +72,7 @@ def select_verifier(networks: Union[NN, List[NN]], properties: Union[DRLP, List[
     Setting.set_LogLevel(log_level)
 
     time_sum_min = float("inf")
-    time_sum_min_verifier = None
+    time_sum_min_verifier = "None"
     for key in status.keys():
         if status[key]["runable"] == True and status[key]["time_sum"] < time_sum_min:
             time_sum_min_verifier = key

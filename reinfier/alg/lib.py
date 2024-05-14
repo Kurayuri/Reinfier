@@ -1,9 +1,17 @@
-from ..import drlp
+from .. import drlp
+
+import os
+import inspect
 
 
 def log_call(*args):
     with open("log.txt", 'a+') as f:
-        args = [str(arg) for arg in args]
+        args = []
+        for arg in args:
+            arg = str(arg)
+            if "\n" in arg:
+                arg = "\n" + arg
+            args.append(arg)
         f.write(" ".join(args) + "\n")
 
 

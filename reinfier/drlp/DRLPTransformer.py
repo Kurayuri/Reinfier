@@ -113,7 +113,7 @@ class DRLPTransformer(ast.NodeTransformer):
         if isinstance(node, ast.Subscript):
             if sys.version_info >= (3, 8):
                 if n == 1:
-                    if isinstance(node.value, ast.Name) and isinstance(node.slice.value, ast.Constant):
+                    if isinstance(node.value, ast.Name) and isinstance(node.slice, ast.Constant):
                         return True
                     else:
                         return False
@@ -707,7 +707,7 @@ class DRLPTransformer_Boundary(DRLPTransformer):
             if isinstance(elem, ast.Constant):
                 values.append(elem.value)
             elif isinstance(elem, ast.UnaryOp) and isinstance(elem.op, ast.USub):
-                values.append(- elem.operand.value)
+                values.append(-elem.operand.value)
             else:
                 values.append(astor.to_source(elem))
 
@@ -728,8 +728,8 @@ class DRLPTransformer_Boundary(DRLPTransformer):
             idxs = [i for i in range(size)]
         elif dim == 2:
 
-            if isinstance(io_element.slice, ast.Index):
-                idxs = [io_element.slice.value.value]
+            if isinstance(io_element.slice, ast.Constant):
+                idxs = [io_element.slice.value]
             elif isinstance(io_element.slice, ast.Slice):
                 idxs = [i for i in range(io_element.slice.lower, io_element.slice.upper)]
 
@@ -803,7 +803,7 @@ class DRLPTransformer_SplitCompare(DRLPTransformer):
             values.append(
                 ast.Call(
                     func=ast.Attribute(
-                        value = ast.Name(id="np",ctx=ast.Load()),
+                        value=ast.Name(id="np", ctx=ast.Load()),
                         attr='all',
                         ctx=ast.Load()
                     ),

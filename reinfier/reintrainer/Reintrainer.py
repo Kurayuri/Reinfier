@@ -9,7 +9,7 @@ from ..import drlp
 from ..import util
 from ..import alg
 from ..import nn
-from typing import Callable, Dict, List, Set, Union, Tuple,Iterable
+from typing import Callable, Dict, List, Set, Union, Tuple, Iterable
 from collections import namedtuple
 # from bayes_opt import BayesianOptimization
 import numpy as np
@@ -18,11 +18,18 @@ import json
 import os
 import re
 
+
 def choose_curriculum():
     pass
 
 
 ENABLE_AUTOGEN = False
+
+REWARD_API_FLAG_VIOL = 0b00001
+REWARD_API_FLAG_DIST = 0b00011
+REWARD_API_FLAG_DENS = 0b00101
+REWARD_API_FLAG_TRAC = 0b01001
+
 
 class Reintrainer:
     '''
@@ -42,7 +49,8 @@ class Reintrainer:
     HP_NORM_P2 = "NORM_P2"
     HP_ALPHA = "ALPHA"
     HP_PD = "PD"
-
+    HP_REWARD_TRACE_GAMME = "REWARD_TRACE_GAMME"
+    HP_REWARD_TRACE_DEPTH = "REWARD_TRACE_DEPTH"
 
     MODULES = ["生成、验证（验证后反例输入、验证后环境分布改变细分、验证后初始状态细分）、训练（主动添加触发情况）、测试（课程学习）"]
 
@@ -67,13 +75,15 @@ class Reintrainer:
         self.verifier = verifier
 
         # Hyperparameter
-        self.HPS = {self.HP_NORM_P1:1, 
-                    self.HP_NORM_P2:2,
-                    self.HP_ALPHA:20,
-                    self.HP_PD:-4.5
+        self.HPS = {self.HP_NORM_P1: 1,
+                    self.HP_NORM_P2: 2,
+                    self.HP_ALPHA: 20,
+                    self.HP_PD: -4.5,
+                    self.HP_REWARD_TRACE_DEPTH: 20,
+                    self.HP_REWARD_TRACE_GAMME: 0.9
                     }
-        
-        for k,v in hyperparameters.items():
+
+        for k, v in hyperparameters.items():
             self.HPS[k] = v
 
         # External API
@@ -95,7 +105,6 @@ class Reintrainer:
         #     elif isinstance(self.train_api, str) or \
         #             isinstance(self.train_api, Tuple):
         #         self.reward_api = self.REWARD_API_FILENAME
-
 
         # Resume
         self.save_dirpath = save_dirpath
@@ -130,10 +139,13 @@ class Reintrainer:
         # Logger
         self.global_log_mode = "a" if self.resumed else "w"
         if self.test_api:
-            self.logger_test = open(os.path.join(self.save_dirpath, self.test_log_filename), self.global_log_mode)
-        self.logger_verify = open(os.path.join(self.save_dirpath, self.verify_log_filename), self.global_log_mode)
+            self.logger_test = open(os.path.join(
+                self.save_dirpath, self.test_log_filename), self.global_log_mode)
+        self.logger_verify = open(os.path.join(
+            self.save_dirpath, self.verify_log_filename), self.global_log_mode)
         # Timer
-        self.timerGroup = TimerGroup(["Generation", "Training", "Verification", "Testing"])
+        self.timerGroup = TimerGroup(
+            ["Generation", "Training", "Verification", "Testing"])
 
         # DYN
         self.property_dynamics = [None for i in range(len(self.properties))]
@@ -141,13 +153,11 @@ class Reintrainer:
 
         # self.model_select = 'latest'
 
-
     def train(self, round: int, cycle: int):
 
         # %% Init
         util.log_prompt(4, "Init", style=CONSTANT.STYLE_CYAN)
         util.log("Model: ", self.curr_model_path, level=CONSTANT.INFO)
-
 
         logLevel = Setting.set_LogLevel(CONSTANT.ERROR)
         init_verification_results = self.call_verify_api()
@@ -161,7 +171,8 @@ class Reintrainer:
         self.timerGroup.reset()
         self.timerGroup.start()
         for self.round in range(self.round + 1, self.round + 1 + round):
-            util.log_prompt(4, "Round %03d" % self.round, style=CONSTANT.STYLE_CYAN)
+            util.log_prompt(4, "Round %03d" %
+                            self.round, style=CONSTANT.STYLE_CYAN)
 
             self.next_model_dirpath = self.make_next_model_dir(self.round)
 
@@ -178,13 +189,17 @@ class Reintrainer:
             self.call_train_api(total_cycle=cycle)
 
             self.curr_model_dirpath = self.next_model_dirpath
-            self.curr_model_path = os.path.join(self.curr_model_dirpath, self.onnx_filename)
-            util.log("## Current model dirpath: \n%s" % self.curr_model_dirpath, level=CONSTANT.INFO)
+            self.curr_model_path = os.path.join(
+                self.curr_model_dirpath, self.onnx_filename)
+            util.log("## Current model dirpath: \n%s" %
+                     self.curr_model_dirpath, level=CONSTANT.INFO)
 
             self.timerGroup.switch()
             # %% Verify
-            util.log_prompt(3, "Verification Part", style=CONSTANT.STYLE_MAGENTA)
-            util.log("Try to verify model:", self.curr_model_path, level=CONSTANT.INFO)
+            util.log_prompt(3, "Verification Part",
+                            style=CONSTANT.STYLE_MAGENTA)
+            util.log("Try to verify model:",
+                     self.curr_model_path, level=CONSTANT.INFO)
 
             self.verification_results = self.call_verify_api()
 
@@ -206,8 +221,10 @@ class Reintrainer:
             util.log("Round %03d:" % self.round, level=CONSTANT.INFO)
             util.log(self.curr_model_dirpath, level=CONSTANT.INFO)
             self.log_result(self.verification_results, test_result)
-            util.log("Reward Generation Time: %.2f s    Training Time: %.2f s    Verification Time: %.2f s    Test Time: %.2f s" % (tuple(times)), level=CONSTANT.INFO)
-            util.log("Round Time: %.2f s    Total Time: %.2f s" % (sum(times), self.timerGroup.now()[2]), level=CONSTANT.INFO)
+            util.log("Reward Generation Time: %.2f s    Training Time: %.2f s    Verification Time: %.2f s    Test Time: %.2f s" % (
+                tuple(times)), level=CONSTANT.INFO)
+            util.log("Round Time: %.2f s    Total Time: %.2f s" %
+                     (sum(times), self.timerGroup.now()[2]), level=CONSTANT.INFO)
 
         # %% Final
         self.timerGroup.stop()
@@ -215,7 +232,8 @@ class Reintrainer:
 
         util.log_prompt(4, "Final", style=CONSTANT.STYLE_CYAN)
         util.log("Model: ", self.curr_model_path, level=CONSTANT.INFO)
-        util.log("Total Time: %.2f s" % (self.timerGroup.now()[2]), level=CONSTANT.INFO)
+        util.log("Total Time: %.2f s" %
+                 (self.timerGroup.now()[2]), level=CONSTANT.INFO)
 
         util.log("From:", level=CONSTANT.INFO, style=CONSTANT.STYLE_RED)
         self.log_result(init_verification_results, init_test_result)
@@ -231,14 +249,14 @@ class Reintrainer:
         if not self.reward_api:
             return
         for i in range(len(self.properties)):
-            code,dynamics,statics = self.get_constraint(self.properties[i])
+            code, dynamics, statics = self.get_constraint(self.properties[i])
             self.property_dynamics[i] = dynamics
             self.property_statics[i] = statics
 
         with open(os.path.join(self.next_model_dirpath, self.REWARD_API_FILENAME), "w") as f:
             f.write(code)
         exec(code)
-        self.Is_Violated_Func_Func=locals()[self.IS_VIOLATED_FUNC_ID]
+        self.Is_Violated_Func_Func = locals()[self.IS_VIOLATED_FUNC_ID]
 
         return code
 
@@ -247,7 +265,7 @@ class Reintrainer:
             return
         mode = "a+" if to_append else "w"
 
-        get_reward_code=""
+        get_reward_code = ""
 
         def autogen():
             dynamics = self.property_dynamics[0][0]
@@ -255,39 +273,45 @@ class Reintrainer:
 
             # TODO for Aurora
             for i in range(10):
-                idx = i*3+0
+                idx = i * 3 + 0
                 dk = dynamics[idx]
-                statics[idx] = Static(dk.lower,dk.upper,dk.lower_closed,dk.upper_closed)
+                statics[idx] = Static(dk.lower, dk.upper,
+                                      dk.lower_closed, dk.upper_closed)
                 dynamics.pop(idx)
 
-                idx  = i*3+1
-                dk= dynamics[idx]
-                statics[idx] = Static(dk.lower,dk.upper,dk.lower_closed,dk.upper_closed)
+                idx = i * 3 + 1
+                dk = dynamics[idx]
+                statics[idx] = Static(dk.lower, dk.upper,
+                                      dk.lower_closed, dk.upper_closed)
                 dynamics.pop(idx)
             ###########
-
 
             to_measure = True
 
             if self.curr_model_dirpath and to_measure:
                 network = NN(self.curr_model_path)
                 for idx, dynamic in dynamics.items():
-                    dynamic.lower_rho = self.measure_rho(network, dynamics, statics, idx, "Lower")
-                    dynamic.upper_rho = self.measure_rho(network, dynamics, statics, idx, "Upper")
-                    dynamic.weight = (dynamic.lower_rho + dynamic.upper_rho) / 2
+                    dynamic.lower_rho = self.measure_rho(
+                        network, dynamics, statics, idx, "Lower")
+                    dynamic.upper_rho = self.measure_rho(
+                        network, dynamics, statics, idx, "Upper")
+                    dynamic.weight = (dynamic.lower_rho +
+                                      dynamic.upper_rho) / 2
             else:
                 for idx, dynamic in dynamics.items():
                     dynamic.lower_rho = 1
                     dynamic.upper_rho = 1
                     dynamic.weight = 1
 
-            util.log("Importance Weight:", {idx:dynamic.weight for idx,dynamic in dynamics.items()}, level=CONSTANT.WARNING, style=CONSTANT.STYLE_RED)
+            util.log("Importance Weight:", {idx: dynamic.weight for idx, dynamic in dynamics.items(
+            )}, level=CONSTANT.WARNING, style=CONSTANT.STYLE_RED)
 
             dist_srcs = []
 
             sum_weight = 0
             for idx, dynamic in dynamics.items():
-                mid = (dynamic.lower_rho * dynamic.lower + dynamic.upper_rho * dynamic.upper) / (dynamic.lower_rho + dynamic.upper_rho)
+                mid = (dynamic.lower_rho * dynamic.lower + dynamic.upper_rho *
+                       dynamic.upper) / (dynamic.lower_rho + dynamic.upper_rho)
                 src = f"dists_x[{idx}] = {dynamic.weight}*dist(x[0][{idx}],{dynamic.lower},{dynamic.upper},{mid})"
                 dist_srcs.append(src)
 
@@ -320,7 +344,7 @@ class Reintrainer:
         else:
             reward = reward
         return reward
-    ''' 
+    '''
             return get_reward_code
 
         def nogen():
@@ -340,22 +364,21 @@ def {self.GET_REWARD_FUNC_ID}(x, y, reward, violated):
     # return reward - sqrt(min(abs(x[0,0]-0.2),abs(x[0,0]-0))**2 + min(abs(x[0,1]-0.05),abs(x[0,1]-0.3))**2)
 
     # return reward 
-'''     
+'''
             return get_reward_code
-            
-        
+
         get_reward_code = autogen() if ENABLE_AUTOGEN else nogen()
-                
+
         with open(os.path.join(self.next_model_dirpath, self.REWARD_API_FILENAME), mode) as f:
             f.write(get_reward_code)
 
         exec(get_reward_code)
-        self.Get_Reward_Func=locals()[self.GET_REWARD_FUNC_ID]
+        self.Get_Reward_Func = locals()[self.GET_REWARD_FUNC_ID]
 
         return get_reward_code
 
-    def measure_rho(self, network: NN, dynamics: List[Dynamic], statics:List[Static], index: int, lower_or_upper: str):
-        util.log("Dynamic",index,level=CONSTANT.INFO)
+    def measure_rho(self, network: NN, dynamics: List[Dynamic], statics: List[Static], index: int, lower_or_upper: str):
+        util.log("Dynamic", index, level=CONSTANT.INFO)
 
         is_lower = lower_or_upper[0].lower() == "l"
 
@@ -365,21 +388,23 @@ def {self.GET_REWARD_FUNC_ID}(x, y, reward, violated):
         for idx, dynamic in dynamics.items():
             x_base[0][idx] = dynamic.lower if is_lower else dynamic.upper
         for idx, static in statics.items():
-            x_base[0][idx] = static.lower if is_lower else static.upper    
-        
+            x_base[0][idx] = static.lower if is_lower else static.upper
+
         INPUT_EPS_MIN = 0.0
         INPUT_EPS_MAX = 0.2
         INPUT_EPS_PRECISION = 1e-2
+
         def verification():
             logLevel = Setting.set_LogLevel(CONSTANT.CRITICAL)
-            y_base = nn.run_onnx(network, np.array(x_base, dtype=np.float32))[0]
+            y_base = nn.run_onnx(network, np.array(
+                x_base, dtype=np.float32))[0]
 
             x_eps_id = "x_eps"
             kwargs = {
                 x_eps_id: {"lower_bound": INPUT_EPS_MIN,
-                        "upper_bound": INPUT_EPS_MAX,
-                        "precise": INPUT_EPS_PRECISION,
-                        "method": "binary", },
+                           "upper_bound": INPUT_EPS_MAX,
+                           "precise": INPUT_EPS_PRECISION,
+                           "method": "binary", },
             }
 
             values = {
@@ -409,9 +434,10 @@ y_size = {output_size}
 y_base-y_eps<=y[0][0]<=y_base+y_eps
     '''
             property = DRLP(src).set_values(values)
-            bps = alg.search_break_points(network, property, kwargs, 0.01, self.verifier, k_max=1, to_induct=False)
+            bps = alg.search_break_points(
+                network, property, kwargs, 0.01, self.verifier, k_max=1, to_induct=False)
             inline_bps, inline_bls = interpretor.analyze_break_points(bps)
-            answer,__,__ = interpretor.answer_importance_analysis(inline_bps)
+            answer, __, __ = interpretor.answer_importance_analysis(inline_bps)
             Setting.set_LogLevel(logLevel)
 
             return answer[0] if answer is not None else 1
@@ -424,9 +450,8 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
                 lower = x_base[0][index] - INPUT_EPS_MIN
                 upper = x_base[0][index] + INPUT_EPS_MIN
 
-                        
-            (max_sum, max_val), (min_sum, min_val) = interpretor.measure_sensitivity(network=network, input=x_base, index=(0,index), 
-                                                                                     lower=lower, upper=upper,precision = INPUT_EPS_PRECISION)
+            (max_sum, max_val), (min_sum, min_val) = interpretor.measure_sensitivity(network=network, input=x_base, index=(0, index),
+                                                                                     lower=lower, upper=upper, precision=INPUT_EPS_PRECISION)
             return abs(max_sum) if abs(max_sum) > abs(min_sum) else abs(min_sum)
         return grad()
 
@@ -435,9 +460,10 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
 
         if isinstance(self.train_api, Callable):
             kwargs["next_model_dirpath"] = self.next_model_dirpath
-            kwargs["reward_api"] = self.reward_api
             kwargs["total_cycle"] = kwargs['total_cycle']
 
+            if self.reward_api:
+                kwargs["reward_api"] = self.reward_api
             if self.curr_model_dirpath:
                 kwargs["curr_model_dirpath"] = self.curr_model_dirpath
             self.train_api(**kwargs)
@@ -451,11 +477,9 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
             cmd = cmd_prefix + " " \
                 f"--total_cycle        {kwargs['total_cycle']} " \
                 f"--next_model_dirpath {self.next_model_dirpath} " \
-                f"--reward_api         {self.reward_api} " \
+                f"--reward_api         {self.reward_api} " if self.reward_api else "" \
+                f"--curr_model_dirpath {self.curr_model_dirpath}" if self.curr_model_dirpath else "" \
                 ""
-
-            if self.curr_model_dirpath:
-                cmd += f"--curr_model_dirpath {self.curr_model_dirpath} "
             cmd += cmd_suffix
 
             util.log(cmd, level=CONSTANT.INFO)
@@ -496,14 +520,16 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
             # proc = subprocess.run(cmd.split(" "), capture_output=True, text=True)
             proc = subprocess.run(cmd, shell=True, capture_output=False)
 
-            result = self.load_test_result(os.path.join(self.curr_model_dirpath, self.test_log_filename))
+            result = self.load_test_result(os.path.join(
+                self.curr_model_dirpath, self.test_log_filename))
             # dnnv_stdout = proc.stdout
             # dnnv_stderr = proc.stderr
             # print(dnnv_stderr)
             # print("\n")
             # print(dnnv_stdout)
 
-        self.logger_test.write(f"Round {self.round:03d} Test: mean_reward:{result['mean_reward']:.2f} +/- {result['std_reward']:.2f}\n")
+        self.logger_test.write(
+            f"Round {self.round:03d} Test: mean_reward:{result['mean_reward']:.2f} +/- {result['std_reward']:.2f}\n")
         self.logger_test.flush()
         return result
 
@@ -519,11 +545,14 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
             for property in self.properties:
                 # TODO
                 # ans = alg.verify(network, property, verifier=self.verifier, to_induct=True)
-                ans = alg.verify(network, property, verifier=self.verifier, to_induct=False, k_max=1,reachability=True)
+                ans = alg.verify(network, property, verifier=self.verifier,
+                                 to_induct=False, k_max=1, reachability=False)
                 verification_results.append(ans)
 
-            anss = {'%02d' % i: verification_results[i][0] for i in range(len(self.properties))}
-            self.logger_verify.write(f"Round {self.round:03d} Verify: {anss}\n")
+            anss = {'%02d' % i: verification_results[i][0]
+                    for i in range(len(self.properties))}
+            self.logger_verify.write(
+                f"Round {self.round:03d} Verify: {anss}\n")
             self.logger_verify.flush()
         return verification_results
 
@@ -542,9 +571,11 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
             try:
                 result = json.load(f)
             except Exception:
-                util.log(f"Invalid test result file at {path}.", level=CONSTANT.WARNING, style=CONSTANT.STYLE_YELLOW)
+                util.log(
+                    f"Invalid test result file at {path}.", level=CONSTANT.WARNING, style=CONSTANT.STYLE_YELLOW)
         except Exception:
-            util.log(f"Could not open test result file at {path}.", level=CONSTANT.WARNING, style=CONSTANT.STYLE_YELLOW)
+            util.log(f"Could not open test result file at {path}.",
+                     level=CONSTANT.WARNING, style=CONSTANT.STYLE_YELLOW)
 
         return result
 
@@ -571,7 +602,8 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
     def log_result(self, verification_results=[], test_result={}, verbose=False):
         if verification_results:
             for i in range(len(self.properties)):
-                util.log("%02d" % i, level=CONSTANT.WARNING, style=CONSTANT.STYLE_YELLOW, end=" ")
+                util.log("%02d" % i, level=CONSTANT.WARNING,
+                         style=CONSTANT.STYLE_YELLOW, end=" ")
                 if verbose:
                     util.log(self.properties[i], level=CONSTANT.WARNING)
                     util.log(self.verification_results[i], level=CONSTANT.WARNING,
@@ -584,34 +616,36 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
             util.log(test_result, level=CONSTANT.INFO)
 
     def maker_RewardAPI(self):
-        def _maker_Is_Violated_Func(x ,y):
-            return self.Is_Violated_Func(x,y)
+        def _maker_Is_Violated_Func(x, y):
+            return self.Is_Violated_Func(x, y)
+
         def _maker_Get_Reward_Func(x, y, reward, violated):
-            return self.Get_Reward_Func(x,y,reward,violated)
+            return self.Get_Reward_Func(x, y, reward, violated)
 
         return {
-            self.IS_VIOLATED_FUNC_ID: _maker_Is_Violated_Func ,
+            self.IS_VIOLATED_FUNC_ID: _maker_Is_Violated_Func,
             self.GET_REWARD_FUNC_ID: _maker_Get_Reward_Func
         }
 
     def Get_Reward_Func(self, x, y, reward, violated):
         return reward
-    
+
     def Is_Violated_Func(self, x, y):
         return False, False
 
     def get_constraint(self, property):   # TODO
-        constraint, dynamics, statics = drlp.parse_drlp_get_constraint(property)
+        constraint, dynamics, statics = drlp.parse_drlp_get_constraint(
+            property)
         util.log("## Constraint:\n", constraint.obj)
         util.log(constraint.obj)
-        code = drlp.parse_constaint_to_code(constraint,dynamics,statics)
+        code = drlp.parse_constaint_to_code(constraint, dynamics, statics)
         return code, dynamics, statics
 
-
-    def module_call(self,module):
+    def module_call(self, module):
         module_name, module_level, module_call = module
-        util.log_prompt(module_level, f"{module_name} Part", style=CONSTANT.STYLE_BLUE)
-        
+        util.log_prompt(
+            module_level, f"{module_name} Part", style=CONSTANT.STYLE_BLUE)
+
 
 def natural_sort(l):
     def convert(text): return int(text) if text.isdigit() else text.lower()

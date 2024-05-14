@@ -4,7 +4,7 @@ TmpPath = "tmp"
 ContainerTmpPath = "/tmp"
 BranchableVerifiers = [CONSTANT.MARABOU]
 ToTestAllVerifier = False
-ContainerNames = {CONSTANT.DNNV:CONSTANT.DNNV,CONSTANT.VERISIG:CONSTANT.VERISIG}
+ContainerNames = {CONSTANT.DNNV:CONSTANT.DNNV,CONSTANT.VERISIG:CONSTANT.VERISIG,CONSTANT.MARABOU:CONSTANT.MARABOU}
 
 def set_LogLevel(level):
     global LogLevel
