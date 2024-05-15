@@ -1,7 +1,7 @@
-class DNNP:
+from ..common.base_class import BaseObject
+
+class DNNP(BaseObject):
     def __init__(self, arg, filename="tmp.dnnp"):
-        self.path = None
-        self.obj = None
 
         if isinstance(arg, str):
             try:
@@ -17,13 +17,9 @@ class DNNP:
         else:
             raise Exception("Invalid type to initialize DNNP object")
 
-    def save(self, path: str = None):
-        try:
-            if path is None:
-                path = self.path
-            open(path, "w").write(self.obj)
-        except BaseException:
-            raise BaseException
+    def save_obj(self, path: str):
+        with open(path, 'w') as file:
+            file.write(self.obj)
 
     def __str__(self):
         return f"{self.obj}"

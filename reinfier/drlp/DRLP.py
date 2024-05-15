@@ -1,12 +1,14 @@
+import copy
+
 from .DRLPTransformer import DRLPTransformer
-from copy import deepcopy
+from ..common.base_class import BaseObject
 
 
-class DRLP:
+class DRLP(BaseObject):
     def __init__(self, arg, kwargs: dict = {}, filename="tmp.drlp"):
-        self.path = None
-        self.obj = None
-        self.kwargs = deepcopy(kwargs)
+        super().__init__(arg, filename)
+
+        self.kwargs = copy.deepcopy(kwargs)
 
         if isinstance(arg, str):
             try:
@@ -16,7 +18,7 @@ class DRLP:
             except Exception:
                 self.path = filename
                 self.obj = arg
-            
+
             # if DRLPTransformer.PRECONDITION_DELIMITER not in self.obj:
             #     raise Exception('Invalid type to initialize DRLP object, DRLP cannot be splitted by EXPECTATION_DELIMITER "@Exp"')
         elif isinstance(arg, DRLP):
@@ -25,13 +27,9 @@ class DRLP:
         else:
             raise Exception("Invalid type to initialize DRLP object")
 
-    def save(self, path: str = None):
-        try:
-            if path is None:
-                path = self.path
-            open(path, "w").write(self.obj)
-        except BaseException:
-            raise BaseException
+    def save_obj(self, path: str):
+        with open(path, 'w') as file:
+            file.write(self.obj)
 
     def edit(self, code: str, to_overwrite: bool = False) -> str:
         if to_overwrite:

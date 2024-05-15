@@ -11,32 +11,19 @@ from ..import dk
 from typing import Tuple, Dict
 import numpy as np
 import subprocess
+import copy
 import time
 import os
 
-# from dnnv.__main__ import _main as dnnv_main
 
+class MarabouExitcode:
+    UNSAT = "UNSAT"
+    SAT = "SAT"
+    UNKNOWN = "UNKNOWN"
+    TIMEOUT = "TIMEOUT"
+    ERROR = "ERROR"
+    QUIT_REQUESTED = "QUIT_REQUESTED"
 
-def is_to_retry(txt: str):
-    if "Assertion `fixval != -kHighsInf' failed" in txt:
-        return True
-    return False
-
-
-# def log_marabou_output(stdout):
-#     if Setting.LogLevel == CONSTANT.DEBUG:
-#         util.log(("## Info:"), level=CONSTANT.INFO)
-#         util.log(("\n".join(stdout)), level=CONSTANT.DEBUG)
-
-#     else:
-#         if ans_gotten:
-#             util.log(("## Info:"), level=CONSTANT.INFO)
-#             util.log(("\n".join(stdout[:-4])), level=CONSTANT.DEBUG)
-#             util.log(("\n".join(stdout[-4:])), level=CONSTANT.INFO)
-#         else:
-#             util.log(("## Error:"), level=CONSTANT.INFO)
-#             util.log(("\n".join(stderr[:-5])), level=CONSTANT.DEBUG)
-#             util.log(("\n".join(stderr[-5:])), level=CONSTANT.INFO)
 
 def exec_docker(property_path, network_path):
     cmd = [
@@ -66,10 +53,14 @@ def exec_docker(property_path, network_path):
 
 
 def boot(network: NN,
-         property: DRLP,
+         property: DRLP | None,
          verifier: None = None,
          network_alias: None = None,
-         violation: str = None) -> Tuple[bool, bool, float, np.ndarray]:
+         violation: str | None = None,
+         inputFtrs: Dict[int, Feature] | None = None,
+         outputFtrs: Dict[int, Feature] | None = None,
+         enabled_outputFtrs_complement: bool = True
+         ) -> Tuple[bool, bool, float, np.ndarray]:
 
     containor_name = Setting.ContainerNames[CONSTANT.MARABOU]
     run_dk = False
@@ -92,62 +83,44 @@ def boot(network: NN,
         network_path = network.path
         property_path = property.path
 
-    if (network.obj is None and network.path is None) or \
-            (property.obj is None and property.path is None):
+    if (not network.isValid()) or (not property.isValid()):
         return (False, None, float('inf'), None)
-
-    class MarabouExitcode:
-        UNSAT = "UNSAT"
-        SAT = "SAT"
-        UNKNOWN = "UNKNOWN"
-        TIMEOUT = "TIMEOUT"
-        ERROR = "ERROR"
-        QUIT_REQUESTED = "QUIT_REQUESTED"
 
     util.log_prompt(1)
     util.log("Single DNN Query Verifying...", level=CONSTANT.INFO)
     util.log("## Info:", level=CONSTANT.INFO)
 
     # Pre
-    inputFtrs: Dict[int, Feature]
-    outputFtrs: Dict[int, Feature]
-    _, (inputDynamic, outputDynamic), (inputStatic, outputStatic) \
-        = drlp.parse_drlp_get_constraint(property)
+    if inputFtrs is None and outputFtrs is None:
+        _, (inputDynamic, outputDynamic), (inputStatic, outputStatic) \
+            = drlp.parse_drlp_get_constraint(property)
 
-    inputFtrs = {**inputDynamic, **inputStatic}
-    outputFtrs = {**outputDynamic, **outputStatic}
+        inputFtrs = {**inputDynamic, **inputStatic} if inputFtrs is None else inputFtrs
+        outputFtrs = {**outputDynamic, **outputStatic} if outputFtrs is None else outputFtrs
 
     from maraboupy import Marabou
     verbosity = 2 if Setting.LogLevel == CONSTANT.DEBUG else 0
     verbose = True if Setting.LogLevel <= CONSTANT.INFO else 0
     options = Marabou.createOptions(verbosity=verbosity)
 
-    def run(inputFtrs, outputFtrs):
-        net = Marabou.read_onnx(network.path)
-        inputVars = net.inputVars[0].flatten()
-        outputVars = net.outputVars[0].flatten()
+    net = Marabou.read_onnx(network.path)
+    inputVars = net.inputVars[0].flatten()
+    outputVars = net.outputVars[0].flatten()
+
+    def run(net, inputFtrs, outputFtrs):
         util.log(outputFtrs, level=CONSTANT.INFO)
+
         for idx, var in enumerate(inputVars):
             net.setLowerBound(var, inputFtrs[idx].lower)
             net.setUpperBound(var, inputFtrs[idx].upper)
 
         for idx, var in enumerate(outputVars):
-            if outputFtrs[idx].lower is not None:
-                net.setLowerBound(var, outputFtrs[idx].lower)
-            if outputFtrs[idx].upper is not None:
-                net.setUpperBound(var, outputFtrs[idx].upper)
-
-        for idx, var in enumerate(outputVars):
             outputFtr = outputFtrs[idx]
-            if outputFtr.lower is not None:
-                Feature(None, outputFtr.lower)
-            if outputFtr.upper is not None:
-                Feature(outputFtr.upper, None)
 
-            if outputFtrs[idx].lower is not None:
-                net.setLowerBound(var, outputFtrs[idx].lower)
-            if outputFtrs[idx].upper is not None:
-                net.setUpperBound(var, outputFtrs[idx].upper)
+            if outputFtr.lower is not None:
+                net.setLowerBound(var, outputFtr.lower)
+            if outputFtr.upper is not None:
+                net.setUpperBound(var, outputFtr.upper)
 
         stime = time.time()
         exitCode, vals, stats = net.solve(verbose=verbose, options=options)
@@ -173,16 +146,22 @@ def boot(network: NN,
                  level=CONSTANT.INFO)
         return runable, result, dtime, violation
 
-    complement_spaces = calc_complement_spaces(outputFtrs.values())
+    outputConditions = [outputFtrs]
+    if enabled_outputFtrs_complement:
+        outputConditions = []
+        outputSpaces = calc_complement_spaces(outputFtrs.values())
+        for outputSpace in outputSpaces:
+            outputIntvs = {
+                idx: interval for idx, interval in zip(outputFtrs.keys(), outputSpace)
+            }
+            outputConditions.append(outputIntvs)
+
     runable, result, sum_time, violation = False, True, 0, None
 
-    for complement_space in complement_spaces:
-        complement_outputIntvs = {
-            idx: interval
-            for idx, interval in enumerate(complement_space)
-        }
-        _runable, _result, _dtime, violation = run(inputFtrs,
-                                                   complement_outputIntvs)
+    for outputCondition in outputConditions:
+        _runable, _result, _dtime, violation = run(copy.deepcopy(net),
+                                                   inputFtrs,
+                                                   outputCondition)
         runable = _runable or runable
         result = _result and result
         sum_time += _dtime

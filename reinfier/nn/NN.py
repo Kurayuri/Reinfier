@@ -1,11 +1,11 @@
 import onnx
+from ..common.base_class import BaseObject
 
 
-class NN:
+class NN(BaseObject):
 
     def __init__(self, arg, filename="tmp.onnx"):
-        self.path = None
-        self.obj = None
+        super().__init__(arg, filename)
         self.input_size = None
         self.output_size = None
         if isinstance(arg, str):
@@ -17,18 +17,11 @@ class NN:
         elif isinstance(arg, NN):
             self.path = arg.path
             self.obj = onnx.load(self.path)
-        # elif arg is None:
-        #     pass
         else:
             raise Exception("Invalid type to initialize NN object")
 
-    def save(self, path: str = None):
-        try:
-            if path is None:
-                path = self.path
-            open(path, "w").write(self.obj)
-        except BaseException:
-            raise BaseException
+    def save_obj(self, path: str):
+        onnx.save(self.obj, path)
 
     def size(self):
         if self.input_size is None:
@@ -47,25 +40,25 @@ class NN:
         import yaml
         weights = self.obj.graph.initializer
 
-        nn_dict = {'weights':{},'offsets':{},'activations':{}}
+        nn_dict = {'weights': {}, 'offsets': {}, 'activations': {}}
         activation_functions = set([
             'Relu', 'LeakyRelu', 'Sigmoid', 'Tanh', 'Softmax',
             'Elu', 'Selu', 'Softsign', 'Softplus', 'Prelu'
         ])
-        activations=[]
+        activations = []
         for node in self.obj.graph.node:
             if node.op_type in activation_functions:
                 activations.append(str(node.op_type))
-        for layer_idx in range(len(weights)//2):
-            nn_dict['weights'][layer_idx+1]=[]
-            for row in onnx.numpy_helper.to_array(weights[layer_idx*2]):
-                nn_dict['weights'][layer_idx+1].append(list(map(float,row)))
+        for layer_idx in range(len(weights) // 2):
+            nn_dict['weights'][layer_idx + 1] = []
+            for row in onnx.numpy_helper.to_array(weights[layer_idx * 2]):
+                nn_dict['weights'][layer_idx + 1].append(list(map(float, row)))
 
-            nn_dict['offsets'][layer_idx+1]=onnx.numpy_helper.to_array(weights[layer_idx*2+1]).tolist()
+            nn_dict['offsets'][layer_idx + 1] = onnx.numpy_helper.to_array(weights[layer_idx * 2 + 1]).tolist()
 
             activation = activations.pop(0) if activations else "Linear"
-            nn_dict['activations'][layer_idx+1]=activation
-            
+            nn_dict['activations'][layer_idx + 1] = activation
+
         return yaml.dump(nn_dict)
 
     def __str__(self):
