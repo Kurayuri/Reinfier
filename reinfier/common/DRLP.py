@@ -1,6 +1,6 @@
 import copy
 
-from .DRLPTransformer import DRLPTransformer
+from ..import Protocal
 from ..common.base_class import BaseObject
 
 
@@ -42,7 +42,7 @@ class DRLP(BaseObject):
 
         drlp_v, drlp_pq = lib.split_drlp_vpq(self.obj)
         drlp_v += code
-        self.obj = "\n".join((drlp_v, DRLPTransformer.PRECONDITION_DELIMITER, drlp_pq))
+        self.obj = "\n".join((drlp_v, Protocal.DRLP.Delimiter.Precondition, drlp_pq))
         return self
 
     def overwrite(self, code: str) -> str:
@@ -50,7 +50,7 @@ class DRLP(BaseObject):
 
         drlp_v, drlp_pq = lib.split_drlp_vpq(self.obj)
         drlp_v = code
-        self.obj = "\n".join((drlp_v, DRLPTransformer.PRECONDITION_DELIMITER, drlp_pq))
+        self.obj = "\n".join((drlp_v,  Protocal.DRLP.Delimiter.Precondition, drlp_pq))
         return self
 
     def set_kwarg(self, variable: str, value):

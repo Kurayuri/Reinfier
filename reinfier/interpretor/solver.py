@@ -1,6 +1,6 @@
-from ..drlp.DRLP import DRLP
-from ..nn.NN import NN
-from ..dummy.classes import *
+from ..common.DRLP import DRLP
+from ..common.NN import NN
+from ..common.type_aliases import *
 from ..import nn
 from ..import drlp
 from ..import util

@@ -1,8 +1,8 @@
-from ..drlp.DRLP import DRLP
-from ..nn.NN import NN
+from ..common.DRLP import DRLP
+from ..common.NN import NN
 from ..import util
 from ..import drlp
-from ..import CONSTANT
+from ..import CONST
 from .single import *
 from .lib import *
 from typing import Tuple, List, Union
@@ -56,7 +56,7 @@ def verify_linear(network: NN, property: DRLP, verifier: str = None, k_max: int 
 
         ans.append((property_pq, k, result))
 
-        util.log((property_pq, property_pq.kwargs, k, result), level=CONSTANT.INFO)
+        util.log((property_pq, property_pq.kwargs, k, result), level=CONST.INFO)
         util.log_prompt(3)
     return ans
 
@@ -78,7 +78,7 @@ def verify_hypercubic(network: NN, property: DRLP, verifier: str = None, k_max: 
 
         ans.append((property_pq, k, result))
 
-        util.log((property_pq, property_pq.kwargs, k, result), level=CONSTANT.INFO)
+        util.log((property_pq, property_pq.kwargs, k, result), level=CONST.INFO)
         util.log_prompt(3)
         if continue_verify(result):
             i += 1
@@ -97,7 +97,7 @@ def search_boundary_dichotomy(network: NN, property: DRLP, kwargs: dict, accurac
     property = property.obj
 
     util.log_prompt(3)
-    util.log("########## Init ##########\n", level=CONSTANT.WARNING)
+    util.log("########## Init ##########\n", level=CONST.WARNING)
 
     value = upper
     property_vpq = DRLP(property).append(f"{variable}={value}")
@@ -109,7 +109,7 @@ def search_boundary_dichotomy(network: NN, property: DRLP, kwargs: dict, accurac
     property_pq = drlp.parse_v(property_vpq)[0]
     result_lower, k, __ = verify(network, property_pq, verifier=verifier, k_max=k_max, k_min=k_min)
 
-    util.log(f"## Result:\nUpper@{upper}\t: {result_upper}\nLower @{lower}\t: {result_lower}\n", level=CONSTANT.WARNING)
+    util.log(f"## Result:\nUpper@{upper}\t: {result_upper}\nLower @{lower}\t: {result_lower}\n", level=CONST.WARNING)
     while upper - lower > accuracy:
         value = (upper + lower) / 2
         property_vpq = DRLP(property).append(f"{variable}={value}")
@@ -122,8 +122,8 @@ def search_boundary_dichotomy(network: NN, property: DRLP, kwargs: dict, accurac
             upper = value
 
         util.log_prompt(3)
-        util.log("########## Step ##########\n", level=CONSTANT.WARNING)
-        util.log(f"## Result:\nMid @ {value}\t: {result}\n", level=CONSTANT.WARNING)
+        util.log("########## Step ##########\n", level=CONST.WARNING)
+        util.log(f"## Result:\nMid @ {value}\t: {result}\n", level=CONST.WARNING)
     return value
 
 
@@ -135,7 +135,7 @@ def search_boundary_iteration_dichotomy(network: NN, property: DRLP, kwargs: dic
     property = property.obj
 
     util.log_prompt(3)
-    util.log("########## Init ##########\n", level=CONSTANT.WARNING)
+    util.log("########## Init ##########\n", level=CONST.WARNING)
 
     value = lower
     property_vpq = DRLP(property).append(f"{variable}={value}")
@@ -149,8 +149,8 @@ def search_boundary_iteration_dichotomy(network: NN, property: DRLP, kwargs: dic
         result, k, __ = verify(network, property_pq, verifier=verifier, k_max=k_max, k_min=k_min)
 
         util.log_prompt(3)
-        util.log("########## Step ##########\n", level=CONSTANT.WARNING)
-        util.log(f"## Result:\nUpper @ {value}\t: {result}\n", level=CONSTANT.WARNING)
+        util.log("########## Step ##########\n", level=CONST.WARNING)
+        util.log(f"## Result:\nUpper @ {value}\t: {result}\n", level=CONST.WARNING)
 
     if value > upper:
         return value
@@ -173,7 +173,8 @@ def search_boundary_hypercubic(network: NN, property: DRLP, kwargs: dict, accura
         variable = variables[depth]
         if depth == len(variables) - 1:
             _property = DRLP(property).set_values(values)
-            value = search_boundary_dichotomy(network, _property, {variable: kwargs[variable]}, accuracy, verifier, k_max, k_min)
+            value = search_boundary_dichotomy(
+                network, _property, {variable: kwargs[variable]}, accuracy, verifier, k_max, k_min)
             vals = values.copy()
             vals[variable] = value
             results.append(DRLP(property, vals).set_values(vals))
@@ -194,9 +195,7 @@ def search_boundary_hypercubic(network: NN, property: DRLP, kwargs: dict, accura
 # {var: {lb, ub, dv, prec}}
 
 
-
-
-def search_break_points(network: NN, property: DRLP, kwargs: dict, default_precise: float = 1e-2, verifier: str = None,
+def search_breakpoints(network: NN, property: DRLP, kwargs: dict, default_precise: float = 1e-2, verifier: str = None,
                         k_max: int = 10, k_min: int = 1, to_induct: bool = True) -> List[Tuple[DRLP, Tuple[int, bool, numpy.ndarray]]]:
     break_points = []
 
@@ -226,25 +225,26 @@ def search_break_points(network: NN, property: DRLP, kwargs: dict, default_preci
 
     def call_verify(_prop: DRLP):
         util.log_prompt(3)
-        util.log("*** Single DRL Query Verifying...", level=CONSTANT.ERROR)
-        util.log("Kwargs:", _prop.kwargs, level=CONSTANT.ERROR)
-        util.log("\n\n", level=CONSTANT.ERROR)
+        util.log("*** Single DRL Query Verifying...", level=CONST.ERROR)
+        util.log("Kwargs:", _prop.kwargs, level=CONST.ERROR)
+        util.log("\n\n", level=CONST.ERROR)
 
         return verify(network, _prop, verifier, k_max, k_min, to_induct)
 
     def concrete(_propert: DRLP, var: str, value: float, all: bool = False):
         if all:
-            left_kwargs = {k: v["default_value"] for k, v in kwargs.items() if k not in _propert.kwargs.keys() and k != var}
+            left_kwargs = {k: v["default_value"]
+                           for k, v in kwargs.items() if k not in _propert.kwargs.keys() and k != var}
             return DRLP(_propert.obj, _propert.kwargs).set_kwarg(var, value).set_kwargs(left_kwargs)
         return DRLP(_propert.obj, _propert.kwargs).set_kwarg(var, value)
 
     def search(_property: DRLP, _kwargs: dict):
         if len(_kwargs) == 1:
             util.log_prompt(4)
-            util.log("########## Search ##########", level=CONSTANT.ERROR)
-            util.log("Env  kwargs: ", _property.kwargs, level=CONSTANT.ERROR)
-            util.log("Curr kwarg:  ", _kwargs, level=CONSTANT.ERROR)
-            util.log("Known break points:  ", break_points, level=CONSTANT.ERROR)
+            util.log("########## Search ##########", level=CONST.ERROR)
+            util.log("Env  kwargs: ", _property.kwargs, level=CONST.ERROR)
+            util.log("Curr kwarg:  ", _kwargs, level=CONST.ERROR)
+            util.log("Known break points:  ", break_points, level=CONST.ERROR)
 
         _kwargs = deepcopy(_kwargs)
         var = list(_kwargs.keys())[0]

@@ -1,47 +1,51 @@
-from ..util.TimerGroup import TimerGroup
-from ..drlp.Feature import Dynamic, Static
-from ..drlp.DRLP import DRLP
-from ..nn.NN import NN
-from ..import interpretor
-from ..import CONSTANT
-from ..import Setting
-from ..import drlp
-from ..import util
-from ..import alg
-from ..import nn
-from typing import Callable, Dict, List, Set, Union, Tuple, Iterable
-from collections import namedtuple
-# from bayes_opt import BayesianOptimization
-import numpy as np
-import subprocess
-import json
-import os
 import re
+import os
+import json
+import copy
+import subprocess
+import numpy as np
+from collections import namedtuple
+from typing import Callable, Dict, List, Set, Union, Tuple, Iterable, Sequence
+from ..import nn
+from ..import alg
+from ..import util
+from ..import drlp
+from ..import Protocal
+from ..import Setting
+from ..import CONST
+from ..import interpretor
+from ..import interface
+from ..util.TimerGroup import TimerGroup
+from ..common.Feature import Dynamic, Static, Feature
+from ..common.DRLP import DRLP
+from ..common.NN import NN
+from ..common.type_aliases import PropertyFeatures, WhichFtr
+# from bayes_opt import BayesianOptimization
+INPUT_EPS_MIN = 0.0
+INPUT_EPS_MAX = 0.2
+INPUT_EPS_PRECISION = 1e-2
 
 
 def choose_curriculum():
     pass
 
 
-ENABLE_AUTOGEN = False
-
-REWARD_API_FLAG_VIOL = 0b00001
-REWARD_API_FLAG_DIST = 0b00011
-REWARD_API_FLAG_DENS = 0b00101
-REWARD_API_FLAG_TRAC = 0b01001
+PropertyFeatures = namedtuple('PropertyFeatures', ['input', 'output'])
 
 
 class Reintrainer:
     '''
     Reintrainer: Property Training Framework for Reinforcement Learning
     '''
+    FLAG_AUTOGEN = 0b000001
+    FLAG_OFF = 0b000000
+    REWARD_API_FLAG_VIOL = 0b000011
+    REWARD_API_FLAG_DIST = 0b000111
+    REWARD_API_FLAG_DENS = 0b001011
+    REWARD_API_FLAG_TRAC = 0b010011
+    REWARD_API_FLAG_ALL = 0b111111
 
-    GET_REWARD_FUNC_ID = "get_reward"
     GET_REWARD_FUNC_PARA_REWARD_ID = "reward"
-    GET_REWARD_FUNC_PARA_X_ID = "x"
-    GET_REWARD_FUNC_PARA_Y_ID = "y"
-    GET_REWARD_FUNC_PARA_VIOLATED_ID = "violated"
-    IS_VIOLATED_FUNC_ID = "is_violated"
 
     REWARD_API_FILENAME = "reward_api.py"
 
@@ -54,25 +58,37 @@ class Reintrainer:
 
     MODULES = ["生成、验证（验证后反例输入、验证后环境分布改变细分、验证后初始状态细分）、训练（主动添加触发情况）、测试（课程学习）"]
 
-    def __init__(self, properties: Iterable[DRLP],
-                 train_api: Union[Callable, str],
+    def __init__(self, properties: Sequence[DRLP],
+                 train_api: Callable | str,
                  save_dirpath: str,
                  verifier: str,
                  init_model_dirpath: str = None,
                  round_exsited: int = -1,
                  reward_api_type: type = str,
-                 test_api: Union[Callable, str] = None,
+                 test_api: Callable | str | None = None,
                  onnx_filename: str = "model.onnx",
                  test_log_filename: str = "test.log",
                  verify_log_filename: str = "verify.log",
                  time_log_filename: str = "time.log",
                  hyperparameters: dict = {},
                  curriculum_api: Callable = None,
+                 flag: int = REWARD_API_FLAG_ALL,
+                 gap_features: Dict[int, Tuple[str, int]] = {}
                  ):
         # Proeprty
         self.properties = properties
         self.properties_apply = []
         self.verifier = verifier
+
+        self.flag = flag
+
+        # Init gap_feature
+        self.gap_features = {}
+        for idx, property in enumerate(self.properties):
+            if idx in gap_features:
+                self.gap_features[idx] = gap_features[idx]
+            else:
+                self.gap_features[idx] = (Protocal.DNNP.Input.Id, 0)
 
         # Hyperparameter
         self.HPS = {self.HP_NORM_P1: 1,
@@ -83,8 +99,7 @@ class Reintrainer:
                     self.HP_REWARD_TRACE_GAMME: 0.9
                     }
 
-        for k, v in hyperparameters.items():
-            self.HPS[k] = v
+        self.HPS.update(hyperparameters)
 
         # External API
         self.curriculum_api = curriculum_api
@@ -98,13 +113,9 @@ class Reintrainer:
                 self.reward_api = self.maker_RewardAPI()
             elif reward_api_type == str:
                 self.reward_api = self.REWARD_API_FILENAME
-
-        # else:
-        #     if isinstance(self.train_api, Callable):
-        #         self.reward_api = self.maker_RewardAPI()
-        #     elif isinstance(self.train_api, str) or \
-        #             isinstance(self.train_api, Tuple):
-        #         self.reward_api = self.REWARD_API_FILENAME
+        if self.reward_api is None:
+            # TODO
+            self.flag = self.FLAG_OFF
 
         # Resume
         self.save_dirpath = save_dirpath
@@ -120,7 +131,7 @@ class Reintrainer:
         except BaseException:
             if not self.resumed:
                 if not util.lib.confirm_input(
-                        f"Detected save_path {self.save_dirpath} already exists, but Reintrainer does not start in resuming training mode.", itype=CONSTANT.INTERACTIVE_ITYPE_y_or_N):
+                        f"Detected save_path {self.save_dirpath} already exists, but Reintrainer does not start in resuming training mode.", itype=CONST.INTERACTIVE_ITYPE_y_or_N):
                     raise Exception("Exit")
 
         # Path Filename
@@ -138,173 +149,170 @@ class Reintrainer:
 
         # Logger
         self.global_log_mode = "a" if self.resumed else "w"
+        self.loggers = []
         if self.test_api:
             self.logger_test = open(os.path.join(
                 self.save_dirpath, self.test_log_filename), self.global_log_mode)
+            self.loggers.append(self.logger_test)
         self.logger_verify = open(os.path.join(
             self.save_dirpath, self.verify_log_filename), self.global_log_mode)
+        self.loggers.append(self.logger_verify)
+
         # Timer
         self.timerGroup = TimerGroup(
             ["Generation", "Training", "Verification", "Testing"])
 
         # DYN
-        self.property_dynamics = [None for i in range(len(self.properties))]
-        self.property_statics = [None for i in range(len(self.properties))]
+        self.properties_dynamics = [None for i in range(len(self.properties))]
+        self.properties_statics = [None for i in range(len(self.properties))]
 
         # self.model_select = 'latest'
+    def __del__(self):
+        for logger in self.loggers:
+            logger.close()
 
     def train(self, round: int, cycle: int):
 
         # %% Init
-        util.log_prompt(4, "Init", style=CONSTANT.STYLE_CYAN)
-        util.log("Model: ", self.curr_model_path, level=CONSTANT.INFO)
+        util.log_prompt(4, "Init", style=CONST.STYLE_CYAN)
+        util.log("Model: ", self.curr_model_path, level=CONST.INFO)
 
-        logLevel = Setting.set_LogLevel(CONSTANT.ERROR)
+        logLevel = Setting.set_LogLevel(CONST.ERROR)
         init_verification_results = self.call_verify_api()
         init_test_result = self.call_test_api()
         Setting.set_LogLevel(logLevel)
-        util.log_prompt(3, "Summary Part", style=CONSTANT.STYLE_YELLOW)
-        util.log(self.curr_model_dirpath, level=CONSTANT.INFO)
+        util.log_prompt(3, "Summary Part", style=CONST.STYLE_YELLOW)
+        util.log(self.curr_model_dirpath, level=CONST.INFO)
         self.log_result(init_verification_results, init_test_result)
 
         # %% Start
         self.timerGroup.reset()
         self.timerGroup.start()
         for self.round in range(self.round + 1, self.round + 1 + round):
-            util.log_prompt(4, "Round %03d" %
-                            self.round, style=CONSTANT.STYLE_CYAN)
+            util.log_prompt(4, "Round %03d" % self.round, style=CONST.STYLE_CYAN)
 
             self.next_model_dirpath = self.make_next_model_dir(self.round)
 
             # %% Train
-            util.log_prompt(3, "Generation Part", style=CONSTANT.STYLE_BLUE)
+            util.log_prompt(3, "Generation Part", style=CONST.STYLE_BLUE)
 
             # % Generation
-            self.generate_constant()
+            self._generate_constraint()
             self.generate_reward()
 
             self.timerGroup.switch()
             # % Train
-            util.log_prompt(3, "Training Part", style=CONSTANT.STYLE_BLUE)
+            util.log_prompt(3, "Training Part", style=CONST.STYLE_BLUE)
             self.call_train_api(total_cycle=cycle)
 
             self.curr_model_dirpath = self.next_model_dirpath
-            self.curr_model_path = os.path.join(
-                self.curr_model_dirpath, self.onnx_filename)
-            util.log("## Current model dirpath: \n%s" %
-                     self.curr_model_dirpath, level=CONSTANT.INFO)
+            self.curr_model_path = os.path.join(self.curr_model_dirpath, self.onnx_filename)
+            util.log("## Current model dirpath: \n%s" % self.curr_model_dirpath, level=CONST.INFO)
 
             self.timerGroup.switch()
             # %% Verify
-            util.log_prompt(3, "Verification Part",
-                            style=CONSTANT.STYLE_MAGENTA)
-            util.log("Try to verify model:",
-                     self.curr_model_path, level=CONSTANT.INFO)
+            util.log_prompt(3, "Verification Part", style=CONST.STYLE_MAGENTA)
+            util.log("Try to verify model:", self.curr_model_path, level=CONST.INFO)
 
             self.verification_results = self.call_verify_api()
 
-            util.log("\n## Verification Results: ", level=CONSTANT.WARNING)
+            util.log("\n## Verification Results: ", level=CONST.WARNING)
             self.log_result(self.verification_results, verbose=True)
 
             self.timerGroup.switch()
             # %% Test
-            util.log_prompt(3, "Testing Part", style=CONSTANT.STYLE_GREEN)
+            util.log_prompt(3, "Testing Part", style=CONST.STYLE_GREEN)
             test_result = self.call_test_api()
 
             self.timerGroup.switch()
             # %% Time
-            util.log_prompt(3, "Summary Part", style=CONSTANT.STYLE_YELLOW)
+            util.log_prompt(3, "Summary Part", style=CONST.STYLE_YELLOW)
             self.timerGroup.dump(os.path.join(self.save_dirpath, "time.log"))
 
             times = self.timerGroup.get().values()
 
-            util.log("Round %03d:" % self.round, level=CONSTANT.INFO)
-            util.log(self.curr_model_dirpath, level=CONSTANT.INFO)
+            util.log("Round %03d:" % self.round, level=CONST.INFO)
+            util.log(self.curr_model_dirpath, level=CONST.INFO)
             self.log_result(self.verification_results, test_result)
             util.log("Reward Generation Time: %.2f s    Training Time: %.2f s    Verification Time: %.2f s    Test Time: %.2f s" % (
-                tuple(times)), level=CONSTANT.INFO)
+                tuple(times)), level=CONST.INFO)
             util.log("Round Time: %.2f s    Total Time: %.2f s" %
-                     (sum(times), self.timerGroup.now()[2]), level=CONSTANT.INFO)
+                     (sum(times), self.timerGroup.now()[2]), level=CONST.INFO)
 
         # %% Final
         self.timerGroup.stop()
         self.timerGroup.dump(os.path.join(self.save_dirpath, "time.log"))
 
-        util.log_prompt(4, "Final", style=CONSTANT.STYLE_CYAN)
-        util.log("Model: ", self.curr_model_path, level=CONSTANT.INFO)
+        util.log_prompt(4, "Final", style=CONST.STYLE_CYAN)
+        util.log("Model: ", self.curr_model_path, level=CONST.INFO)
         util.log("Total Time: %.2f s" %
-                 (self.timerGroup.now()[2]), level=CONSTANT.INFO)
+                 (self.timerGroup.now()[2]), level=CONST.INFO)
 
-        util.log("From:", level=CONSTANT.INFO, style=CONSTANT.STYLE_RED)
+        util.log("From:", level=CONST.INFO, style=CONST.STYLE_RED)
         self.log_result(init_verification_results, init_test_result)
 
-        util.log("\nTo:", level=CONSTANT.INFO, style=CONSTANT.STYLE_GREEN)
+        util.log("\nTo:", level=CONST.INFO, style=CONST.STYLE_GREEN)
         self.log_result(self.verification_results, test_result)
 
-    def generate_constant(self):
-        # TODO
-        if not ENABLE_AUTOGEN:
+    def _generate_constraint(self):
+        if not (self.flag & self.FLAG_AUTOGEN):
             return
 
-        if not self.reward_api:
-            return
         for i in range(len(self.properties)):
             code, dynamics, statics = self.get_constraint(self.properties[i])
-            self.property_dynamics[i] = dynamics
-            self.property_statics[i] = statics
+
+            self.properties_dynamics[i] = dynamics
+            self.properties_statics[i] = statics
 
         with open(os.path.join(self.next_model_dirpath, self.REWARD_API_FILENAME), "w") as f:
             f.write(code)
         exec(code)
-        self.Is_Violated_Func_Func = locals()[self.IS_VIOLATED_FUNC_ID]
+        self.Is_Violated_Func_Func = locals()[Protocal.API.Reward.IsViolated.Id]
 
         return code
 
     def generate_reward(self, to_append: bool = True):
-        if not self.reward_api:
+        if not (self.flag & self.FLAG_AUTOGEN):
             return
+
         mode = "a+" if to_append else "w"
 
-        get_reward_code = ""
+        code_get_reward = ""
+
+        # self.update_features()
 
         def autogen():
-            dynamics = self.property_dynamics[0][0]
-            statics = self.property_statics[0][0]
+            # TODO
+            dynamics: Dict[int, Dynamic]
+            statics: Dict[int, Static]
+            dynamics = self.properties_dynamics[0].input
+            statics = self.properties_statics[0].input
 
-            # TODO for Aurora
-            for i in range(10):
-                idx = i * 3 + 0
-                dk = dynamics[idx]
-                statics[idx] = Static(dk.lower, dk.upper,
-                                      dk.lower_closed, dk.upper_closed)
-                dynamics.pop(idx)
+            # # TODO for Aurora
+            # for i in range(10):
+            #     idx = i * 3 + 0
+            #     dk = dynamics[idx]
+            #     statics[idx] = Static(dk.lower, dk.upper,
+            #                           dk.lower_closed, dk.upper_closed)
+            #     dynamics.pop(idx)
 
-                idx = i * 3 + 1
-                dk = dynamics[idx]
-                statics[idx] = Static(dk.lower, dk.upper,
-                                      dk.lower_closed, dk.upper_closed)
-                dynamics.pop(idx)
-            ###########
+            #     idx = i * 3 + 1
+            #     dk = dynamics[idx]
+            #     statics[idx] = Static(dk.lower, dk.upper,
+            #                           dk.lower_closed, dk.upper_closed)
+            #     dynamics.pop(idx)
+            # ###########
 
-            to_measure = True
-
-            if self.curr_model_dirpath and to_measure:
+            # Not first round and rho
+            if self.curr_model_dirpath and (self.flag & self.REWARD_API_FLAG_DENS):
                 network = NN(self.curr_model_path)
                 for idx, dynamic in dynamics.items():
-                    dynamic.lower_rho = self.measure_rho(
-                        network, dynamics, statics, idx, "Lower")
-                    dynamic.upper_rho = self.measure_rho(
-                        network, dynamics, statics, idx, "Upper")
-                    dynamic.weight = (dynamic.lower_rho +
-                                      dynamic.upper_rho) / 2
-            else:
-                for idx, dynamic in dynamics.items():
-                    dynamic.lower_rho = 1
-                    dynamic.upper_rho = 1
-                    dynamic.weight = 1
+                    dynamic.lower_rho = self.measure_rho(network, dynamics, statics, idx, "Lower")
+                    dynamic.upper_rho = self.measure_rho(network, dynamics, statics, idx, "Upper")
+                    dynamic.weight = (dynamic.lower_rho + dynamic.upper_rho) / 2
 
             util.log("Importance Weight:", {idx: dynamic.weight for idx, dynamic in dynamics.items(
-            )}, level=CONSTANT.WARNING, style=CONSTANT.STYLE_RED)
+            )}, level=CONST.WARNING, style=CONST.STYLE_RED)
 
             dist_srcs = []
 
@@ -317,68 +325,69 @@ class Reintrainer:
 
                 sum_weight += dynamic.weight
 
-            get_reward_code = f'''
-    def {self.GET_REWARD_FUNC_ID}({self.GET_REWARD_FUNC_PARA_X_ID}, {self.GET_REWARD_FUNC_PARA_Y_ID}, {self.GET_REWARD_FUNC_PARA_REWARD_ID}, {self.GET_REWARD_FUNC_PARA_VIOLATED_ID}):
-        p1 = {self.HPS[self.HP_NORM_P1]}
-        p2 = {self.HPS[self.HP_NORM_P2]}
-        alpha = {self.HPS[self.HP_ALPHA]}
-            
-        def dist(val,lower, upper, mid):
-            if val > upper or val < lower:
-                return 0
+            code_get_reward = f'''
+def {Protocal.API.Reward.GetReward.Id}({Protocal.API.Reward.GetReward.Param.Observation.Id}, {Protocal.API.Reward.GetReward.Param.Action.Id}, {Protocal.API.Reward.GetReward.Param.Reward.Id}, {Protocal.API.Reward.GetReward.Param.Violated.Id}):
+    p1 = {self.HPS[self.HP_NORM_P1]}
+    p2 = {self.HPS[self.HP_NORM_P2]}
+    alpha = {self.HPS[self.HP_ALPHA]}
+        
+    def dist(val,lower, upper, mid):
+        if val > upper or val < lower:
+            return 0
 
-            if val > mid:
-                return ((upper-val)/(upper-mid))**p1
-            else:
-                return ((val-lower)/(mid-lower))**p1
-
-        if {self.GET_REWARD_FUNC_PARA_VIOLATED_ID}:
-            dists_x = dict()
-    ''' + "".join(["        " + srs + "\n" for srs in dist_srcs]) + f'''
-            sum_1 = sum([dist**p2 for dist in dists_x.values()])
-            sum_2 = {sum_weight}
-            Dist_x = (sum_1)**(1/p2)/sum_2
-            Fs = - 1 * Dist_x
-            # reward = reward + Fs * alpha
-            reward = reward + {self.HPS[self.HP_PD]}
+        if val > mid:
+            return {'((upper-val)/(upper-mid))**p1' if self.flag & self.REWARD_API_FLAG_DENS else 'upper-val'}
         else:
-            reward = reward
-        return reward
-    '''
-            return get_reward_code
+            return {'((val-lower)/(mid-lower))**p1'  if self.flag & self.REWARD_API_FLAG_DENS else 'val-lower'}
 
-        def nogen():
-            get_reward_code = f'''
-def {self.IS_VIOLATED_FUNC_ID}(x, y):
-    if np.all([[1.5,1.5]]>x) and np.all([[-1.5,-1.5]]<x):
-        return True, True
+    if {Protocal.API.Reward.GetReward.Param.Violated.Id}:
+        dists_x = dict()
+''' + "".join(["        " + srs + "\n" for srs in dist_srcs]) + f'''
+        sum_1 = sum([dist**p2 for dist in dists_x.values()])
+        sum_2 = {sum_weight}
+        Dist_x = (sum_1)**(1/p2)/sum_2
+        Fs = - 1 * Dist_x
+        # reward = reward + Fs * alpha
+        reward = reward + {self.HPS[self.HP_PD]}
     else:
-        return True, False
-
-def {self.GET_REWARD_FUNC_ID}(x, y, reward, violated):
-    from math import sqrt
-    # return reward - 2*sqrt((min(abs(x[0,0]-0.2),abs(x[0,0]-0))/5)**2 + (min(abs(x[0,1] - 0.05),abs(x[0,1] - 0.3)))**2)
-    # return reward - 0.5*(min(abs(x[0,0]-0.2),abs(x[0,0]-0))+(min(abs(x[0,1] - 0.05),abs(x[0,1] - 0.3)))) b1_p4
-    # return reward - 4/(min(abs(x[0,0]-1),abs(x[0,0]--1)) + min(abs(x[0,1] - 1),abs(x[0,1] - -1)) + min(abs(x[0,1] -1.57),abs(x[0,1] --1.57)) + min(abs(x[0,1] -1),abs(x[0,1] - -1)))
-    return reward  - {self.HPS[self.HP_PD]}/((min(abs(x[0,0]-1.5), abs(x[0,0]+1.50)) + (min(abs(x[0,1]-1.5), abs(x[0,1] + 1.5))))+1) # b1_2
-    # return reward - sqrt(min(abs(x[0,0]-0.2),abs(x[0,0]-0))**2 + min(abs(x[0,1]-0.05),abs(x[0,1]-0.3))**2)
-
-    # return reward 
+        reward = reward
+    return reward
 '''
-            return get_reward_code
+            return code_get_reward
 
-        get_reward_code = autogen() if ENABLE_AUTOGEN else nogen()
+#         def nogen():
+#             get_reward_code = f'''
+# def {self.Protocal.API.Reward.IsViolated.Id}(x, y):
+#     if np.all([[1.5,1.5]]>x) and np.all([[-1.5,-1.5]]<x):
+#         return True, True
+#     else:
+#         return True, False
 
+# def {self.Protocal.API.REWARD.GET_REWARD.ID}(x, y, reward, violated):
+#     from math import sqrt
+#     # return reward - 2*sqrt((min(abs(x[0,0]-0.2),abs(x[0,0]-0))/5)**2 + (min(abs(x[0,1] - 0.05),abs(x[0,1] - 0.3)))**2)
+#     # return reward - 0.5*(min(abs(x[0,0]-0.2),abs(x[0,0]-0))+(min(abs(x[0,1] - 0.05),abs(x[0,1] - 0.3)))) b1_p4
+#     # return reward - 4/(min(abs(x[0,0]-1),abs(x[0,0]--1)) + min(abs(x[0,1] - 1),abs(x[0,1] - -1)) + min(abs(x[0,1] -1.57),abs(x[0,1] --1.57)) + min(abs(x[0,1] -1),abs(x[0,1] - -1)))
+#     return reward  - {self.HPS[self.HP_PD]}/((min(abs(x[0,0]-1.5), abs(x[0,0]+1.50)) + (min(abs(x[0,1]-1.5), abs(x[0,1] + 1.5))))+1) # b1_2
+#     # return reward - sqrt(min(abs(x[0,0]-0.2),abs(x[0,0]-0))**2 + min(abs(x[0,1]-0.05),abs(x[0,1]-0.3))**2)
+
+#     # return reward
+# '''
+            # return code_get_reward
+
+        code_get_reward = autogen()
+
+        util.log(code_get_reward)
         with open(os.path.join(self.next_model_dirpath, self.REWARD_API_FILENAME), mode) as f:
-            f.write(get_reward_code)
+            f.write(code_get_reward)
 
-        exec(get_reward_code)
-        self.Get_Reward_Func = locals()[self.GET_REWARD_FUNC_ID]
+        exec(code_get_reward)
+        self.Get_Reward_Func = locals()[Protocal.API.Reward.GetReward.Id]
 
-        return get_reward_code
+        return code_get_reward
 
-    def measure_rho(self, network: NN, dynamics: List[Dynamic], statics: List[Static], index: int, lower_or_upper: str):
-        util.log("Dynamic", index, level=CONSTANT.INFO)
+    def measure_rho(self, network: NN, dynamics: Sequence[Dynamic], statics: Sequence[Static], index: int, lower_or_upper: str):
+        util.log("Dynamic", index, level=CONST.INFO)
 
         is_lower = lower_or_upper[0].lower() == "l"
 
@@ -390,12 +399,8 @@ def {self.GET_REWARD_FUNC_ID}(x, y, reward, violated):
         for idx, static in statics.items():
             x_base[0][idx] = static.lower if is_lower else static.upper
 
-        INPUT_EPS_MIN = 0.0
-        INPUT_EPS_MAX = 0.2
-        INPUT_EPS_PRECISION = 1e-2
-
         def verification():
-            logLevel = Setting.set_LogLevel(CONSTANT.CRITICAL)
+            logLevel = Setting.set_LogLevel(CONST.CRITICAL)
             y_base = nn.run_onnx(network, np.array(
                 x_base, dtype=np.float32))[0]
 
@@ -434,7 +439,7 @@ y_size = {output_size}
 y_base-y_eps<=y[0][0]<=y_base+y_eps
     '''
             property = DRLP(src).set_values(values)
-            bps = alg.search_break_points(
+            bps = alg.search_breakpoints(
                 network, property, kwargs, 0.01, self.verifier, k_max=1, to_induct=False)
             inline_bps, inline_bls = interpretor.analyze_break_points(bps)
             answer, __, __ = interpretor.answer_importance_analysis(inline_bps)
@@ -456,7 +461,7 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
         return grad()
 
     def call_train_api(self, **kwargs):
-        util.log("Training...", level=CONSTANT.INFO)
+        util.log("Training...", level=CONST.INFO)
 
         if isinstance(self.train_api, Callable):
             kwargs["next_model_dirpath"] = self.next_model_dirpath
@@ -482,7 +487,7 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
                 ""
             cmd += cmd_suffix
 
-            util.log(cmd, level=CONSTANT.INFO)
+            util.log(cmd, level=CONST.INFO)
             proc = subprocess.run(cmd, shell=True, capture_output=False)
 
     def call_test_api(self, **kwargs):
@@ -491,7 +496,7 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
         if self.curr_model_dirpath is None:
             return None
 
-        util.log("Testing...", level=CONSTANT.INFO)
+        util.log("Testing...", level=CONST.INFO)
         result = None
 
         if isinstance(self.test_api, Callable):
@@ -512,21 +517,11 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
 
             cmd += cmd_suffix
 
-            util.log(cmd, level=CONSTANT.INFO)
-            # with subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as process:
-            #     for line in process.stdout:
-            #         util.log(line.decode('utf8'))
-
-            # proc = subprocess.run(cmd.split(" "), capture_output=True, text=True)
+            util.log(cmd, level=CONST.INFO)
             proc = subprocess.run(cmd, shell=True, capture_output=False)
 
             result = self.load_test_result(os.path.join(
                 self.curr_model_dirpath, self.test_log_filename))
-            # dnnv_stdout = proc.stdout
-            # dnnv_stderr = proc.stderr
-            # print(dnnv_stderr)
-            # print("\n")
-            # print(dnnv_stdout)
 
         self.logger_test.write(
             f"Round {self.round:03d} Test: mean_reward:{result['mean_reward']:.2f} +/- {result['std_reward']:.2f}\n")
@@ -561,7 +556,7 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
         try:
             os.makedirs(path, exist_ok=True)
         except Exception as e:
-            util.log(e, level=CONSTANT.ERROR)
+            util.log(e, level=CONST.ERROR)
         return path
 
     def load_test_result(self, path: str) -> Dict:
@@ -572,10 +567,11 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
                 result = json.load(f)
             except Exception:
                 util.log(
-                    f"Invalid test result file at {path}.", level=CONSTANT.WARNING, style=CONSTANT.STYLE_YELLOW)
+                    f"Invalid test result file at {path}.", level=CONST.WARNING, style=CONST.STYLE_YELLOW)
+            f.close()
         except Exception:
             util.log(f"Could not open test result file at {path}.",
-                     level=CONSTANT.WARNING, style=CONSTANT.STYLE_YELLOW)
+                     level=CONST.WARNING, style=CONST.STYLE_YELLOW)
 
         return result
 
@@ -602,18 +598,18 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
     def log_result(self, verification_results=[], test_result={}, verbose=False):
         if verification_results:
             for i in range(len(self.properties)):
-                util.log("%02d" % i, level=CONSTANT.WARNING,
-                         style=CONSTANT.STYLE_YELLOW, end=" ")
+                util.log("%02d" % i, level=CONST.WARNING,
+                         style=CONST.STYLE_YELLOW, end=" ")
                 if verbose:
-                    util.log(self.properties[i], level=CONSTANT.WARNING)
-                    util.log(self.verification_results[i], level=CONSTANT.WARNING,
-                             style=CONSTANT.STYLE_GREEN if self.verification_results[i][0] == True else CONSTANT.STYLE_RED)
+                    util.log(self.properties[i], level=CONST.WARNING)
+                    util.log(self.verification_results[i], level=CONST.WARNING,
+                             style=CONST.STYLE_GREEN if self.verification_results[i][0] == True else CONST.STYLE_RED)
                 else:
-                    util.log(verification_results[i][0], level=CONSTANT.WARNING,
-                             style=CONSTANT.STYLE_GREEN if verification_results[i][0] == True else CONSTANT.STYLE_RED)
+                    util.log(verification_results[i][0], level=CONST.WARNING,
+                             style=CONST.STYLE_GREEN if verification_results[i][0] == True else CONST.STYLE_RED)
 
         if test_result:
-            util.log(test_result, level=CONSTANT.INFO)
+            util.log(test_result, level=CONST.INFO)
 
     def maker_RewardAPI(self):
         def _maker_Is_Violated_Func(x, y):
@@ -623,8 +619,8 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
             return self.Get_Reward_Func(x, y, reward, violated)
 
         return {
-            self.IS_VIOLATED_FUNC_ID: _maker_Is_Violated_Func,
-            self.GET_REWARD_FUNC_ID: _maker_Get_Reward_Func
+            Protocal.API.Reward.IsViolated.Id: _maker_Is_Violated_Func,
+            Protocal.API.Reward.GetReward.Id: _maker_Get_Reward_Func
         }
 
     def Get_Reward_Func(self, x, y, reward, violated):
@@ -634,17 +630,54 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
         return False, False
 
     def get_constraint(self, property):   # TODO
-        constraint, dynamics, statics = drlp.parse_drlp_get_constraint(
-            property)
-        util.log("## Constraint:\n", constraint.obj)
+        constraint, dynamics, statics = drlp.parse_drlp_get_constraint(property)
+        util.log("## Constraint:")
         util.log(constraint.obj)
-        code = drlp.parse_constaint_to_code(constraint, dynamics, statics)
+
+        code = ""
+        if self.flag == self.FLAG_AUTOGEN:
+            code = Protocal.API.Reward.IsViolated.Template
+        elif self.flag & self.REWARD_API_FLAG_VIOL:
+            code = drlp.parse_constaint_to_code(constraint, dynamics, statics)
+        util.log("## Constraint Code:")
+        util.log(code)
         return code, dynamics, statics
 
     def module_call(self, module):
         module_name, module_level, module_call = module
         util.log_prompt(
-            module_level, f"{module_name} Part", style=CONSTANT.STYLE_BLUE)
+            module_level, f"{module_name} Part", style=CONST.STYLE_BLUE)
+
+    def update_features(self):
+        for idx, property in enumerate(self.properties):
+            gap_feature = self.gap_features[idx]
+            tmp = self.properties_statics[idx]
+            self.properties_statics[idx] = self.properties_dynamics[idx]
+            self.properties_dynamics[idx] = tmp
+
+            if gap_feature[0] == Protocal.DRLP.Input.Id:
+                feature = self.properties_statics[idx].input.pop(gap_feature[1])
+                dynamic = PropertyFeatures({gap_feature[1]: feature}, {})
+
+            else:  # gap_feature[0] == Protocal.DRLP.Output.Id
+                feature = self.properties_statics[idx].output.pop(gap_feature[1])
+                dynamic = PropertyFeatures({}, {gap_feature[1]: feature})
+
+            self.properties_dynamics[idx] = dynamic
+
+    def measure_gap(self, inputFtrs: Dict[int, Feature], outputFtrs: Dict[int, Feature], whichFtr: WhichFtr):
+        gapFtr: Feature
+        gapFtr = inputFtrs[whichFtr.index] if whichFtr.io == Protocal.DRLP.Input.Id else outputFtrs[whichFtr.index]
+        _gapFtr = copy.deepcopy(gapFtr)
+
+        def be_slack(gapFtr: Feature, io: str):
+            if io == Protocal.DRLP.Input.Id:
+                gapFtr.lower += 1
+                gapFtr.upper -= 1
+            else:
+                gapFtr.lower -= 1
+                gapFtr.upper += 1
+        interface
 
 
 def natural_sort(l):

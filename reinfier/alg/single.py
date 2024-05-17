@@ -1,9 +1,9 @@
-from ..drlp.DRLP import DRLP
-from ..nn.NN import NN
+from ..common.DRLP import DRLP
+from ..common.NN import NN
 from ..import nn
 from ..import interface
 from ..import drlp
-from ..import CONSTANT
+from ..import CONST
 from .import lib
 from .import selector
 from typing import Tuple
@@ -24,7 +24,7 @@ def bmc(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_mi
         dnnp = drlp.parser.parse_vpq(property, k)[0]
 
         runable, result, time, violation = interface.dnnv.boot(dnn, dnnp, verifier) \
-            if verifier != CONSTANT.MARABOU else interface.marabou.boot(dnn, property)
+            if verifier != CONST.MARABOU else interface.marabou.boot(dnn, property)
 
         lib.log_call("base_ans", k, runable, result, time)
 
@@ -48,7 +48,7 @@ def k_induction(network: NN, property: DRLP, verifier: str = None, k_max: int = 
         dnnp = drlp.parser.parse_vpq(property, k)[0]
 
         runable, result, time, violation = interface.dnnv.boot(dnn, dnnp, verifier) \
-            if verifier != CONSTANT.MARABOU else interface.marabou.boot(dnn, property)
+            if verifier != CONST.MARABOU else interface.marabou.boot(dnn, property)
 
         lib.log_call("base_ans", k, runable, result, time)
 
@@ -58,7 +58,7 @@ def k_induction(network: NN, property: DRLP, verifier: str = None, k_max: int = 
             dnnp = drlp.parser.parse_vpq(property, k, {}, True)[0]
 
             runable, result, time, violation = interface.dnnv.boot(dnn, dnnp, verifier) \
-                if verifier != CONSTANT.MARABOU else interface.marabou.boot(dnn, property)
+                if verifier != CONST.MARABOU else interface.marabou.boot(dnn, property)
             lib.log_call("induction_ans", k, runable, result, time)
 
             if result == True:

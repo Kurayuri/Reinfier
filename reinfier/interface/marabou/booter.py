@@ -1,8 +1,8 @@
-from ...drlp.DNNP import DNNP
-from ...drlp.DRLP import DRLP
-from ...drlp.Feature import *
-from ...nn.NN import NN
-from ...import CONSTANT
+from ...common.DNNP import DNNP
+from ...common.DRLP import DRLP
+from ...common.Feature import *
+from ...common.NN import NN
+from ...import CONST
 from ...import Setting
 from ...import util
 from ...import drlp
@@ -62,7 +62,7 @@ def boot(network: NN,
          enabled_outputFtrs_complement: bool = True
          ) -> Tuple[bool, bool, float, np.ndarray]:
 
-    containor_name = Setting.ContainerNames[CONSTANT.MARABOU]
+    containor_name = Setting.ContainerNames[CONST.MARABOU]
     run_dk = False
 
     if violation is None:
@@ -87,8 +87,8 @@ def boot(network: NN,
         return (False, None, float('inf'), None)
 
     util.log_prompt(1)
-    util.log("Single DNN Query Verifying...", level=CONSTANT.INFO)
-    util.log("## Info:", level=CONSTANT.INFO)
+    util.log("Single DNN Query Verifying...", level=CONST.INFO)
+    util.log("## Info:", level=CONST.INFO)
 
     # Pre
     if inputFtrs is None and outputFtrs is None:
@@ -99,8 +99,8 @@ def boot(network: NN,
         outputFtrs = {**outputDynamic, **outputStatic} if outputFtrs is None else outputFtrs
 
     from maraboupy import Marabou
-    verbosity = 2 if Setting.LogLevel == CONSTANT.DEBUG else 0
-    verbose = True if Setting.LogLevel <= CONSTANT.INFO else 0
+    verbosity = 2 if Setting.LogLevel == CONST.DEBUG else 0
+    verbose = True if Setting.LogLevel <= CONST.INFO else 0
     options = Marabou.createOptions(verbosity=verbosity)
 
     net = Marabou.read_onnx(network.path)
@@ -108,7 +108,7 @@ def boot(network: NN,
     outputVars = net.outputVars[0].flatten()
 
     def run(net, inputFtrs, outputFtrs):
-        util.log(outputFtrs, level=CONSTANT.INFO)
+        util.log(outputFtrs, level=CONST.INFO)
 
         for idx, var in enumerate(inputVars):
             net.setLowerBound(var, inputFtrs[idx].lower)
@@ -143,7 +143,7 @@ def boot(network: NN,
                 result, runable = None, False
 
         util.log(f"Runable: {runable}   Result: {result}   Time: {dtime}\n",
-                 level=CONSTANT.INFO)
+                 level=CONST.INFO)
         return runable, result, dtime, violation
 
     outputConditions = [outputFtrs]
@@ -168,9 +168,9 @@ def boot(network: NN,
         if result == False:
             break
 
-    util.log("\n## Ans:", level=CONSTANT.WARNING)
+    util.log("\n## Ans:", level=CONST.WARNING)
     util.log(f"Runable: {runable}   Result: {result}   Time: {sum_time}",
-             level=CONSTANT.WARNING)
+             level=CONST.WARNING)
     if result == False:
         nn.run_onnx(network, violation)
     util.log_prompt(2)

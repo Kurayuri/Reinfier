@@ -1,22 +1,22 @@
 from sympy import Interval, Complement, oo
-from typing import *
+from typing import Iterable, List
 SympyInterval = Interval
 
 
 class Interval:
     def __init__(
         self,
-        lower=None,
-        upper=None,
-        lower_closed=True,
-        upper_closed=True,
+        lower: int | float | None = None,
+        upper: int | float | None = None,
+        lower_closed: bool = True,
+        upper_closed: bool = True
     ):
         self.lower = lower
         self.upper = upper
         self.lower_closed = lower_closed
         self.upper_closed = upper_closed
 
-    def sympy(self):
+    def to_sympy(self):
         return SympyInterval(self.lower if self.lower is not None else -oo,
                              self.upper if self.upper is not None else oo)
 
@@ -30,14 +30,19 @@ class Interval:
 
 
 class Feature(Interval):
-
     def __repr__(self) -> str:
         return f'Feature({self.lower}, {self.upper})'
 
 
 class Dynamic(Feature):
-    def __init__(self, lower=None, upper=None, lower_closed=True, upper_closed=True,
-                 lower_rho=None, upper_rho=None, weight=None):
+    def __init__(self,
+                 lower: int | float | None = None,
+                 upper: int | float | None = None,
+                 lower_closed: bool = True,
+                 upper_closed: bool = True,
+                 lower_rho: float = 1,
+                 upper_rho: float = 1,
+                 weight: float = 1):
         super().__init__(lower, upper, lower_closed, upper_closed)
         self.lower_rho = lower_rho
         self.upper_rho = upper_rho
@@ -49,7 +54,11 @@ class Dynamic(Feature):
 
 
 class Static(Feature):
-    def __init__(self, lower=None, upper=None, lower_closed=True, upper_closed=True):
+    def __init__(self,
+                 lower: int | float | None = None,
+                 upper: int | float | None = None,
+                 lower_closed: bool = True,
+                 upper_closed: bool = True):
         super().__init__(lower, upper, lower_closed, upper_closed)
 
     def __repr__(self) -> str:
@@ -63,7 +72,7 @@ def calc_complement(a: Interval):
 
 
 def calc_difference(a: Interval, b: Interval) -> List[Interval]:
-    union = Complement(a.sympy(), b.sympy())
+    union = Complement(a.to_sympy(), b.to_sympy())
     return [
         Interval.from_sympy(sympyInterval)
         for sympyInterval in list(union.args)

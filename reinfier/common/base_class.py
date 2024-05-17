@@ -16,3 +16,4 @@ class BaseObject(ABC):
 
     def isValid(self):
         return not (self.path is None and self.obj is None)
+

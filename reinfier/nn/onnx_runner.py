@@ -1,6 +1,6 @@
-from ..import CONSTANT
+from ..import CONST
 from ..import util
-from .NN import NN
+from ..common.NN import NN
 from typing import Union
 import onnxruntime
 import numpy as np
@@ -27,5 +27,5 @@ def run_onnx(network: Union[str, NN], input: Union[str, np.ndarray]) -> np.ndarr
     session = onnxruntime.InferenceSession(network,)
     input_name = session.get_inputs()[0].name
     output = session.run([], {input_name: input_array})
-    util.log("With Input:\n", input_array, "\nOutput:\n", output, level=CONSTANT.INFO)
+    util.log("With Input:\n", input_array, "\nOutput:\n", output, level=CONST.INFO)
     return output

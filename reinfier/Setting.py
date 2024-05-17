@@ -1,10 +1,10 @@
-from .import CONSTANT
-LogLevel = CONSTANT.INFO
+from .import CONST
+LogLevel = CONST.INFO
 TmpPath = "tmp"
 ContainerTmpPath = "/tmp"
-BranchableVerifiers = [CONSTANT.MARABOU]
+BranchableVerifiers = [CONST.MARABOU]
 ToTestAllVerifier = False
-ContainerNames = {CONSTANT.DNNV:CONSTANT.DNNV,CONSTANT.VERISIG:CONSTANT.VERISIG,CONSTANT.MARABOU:CONSTANT.MARABOU}
+ContainerNames = {CONST.DNNV:CONST.DNNV,CONST.VERISIG:CONST.VERISIG,CONST.MARABOU:CONST.MARABOU}
 
 def set_LogLevel(level):
     global LogLevel

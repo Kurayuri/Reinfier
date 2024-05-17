@@ -1,5 +1,5 @@
 import onnx
-from ..common.base_class import BaseObject
+from .base_class import BaseObject
 
 
 class NN(BaseObject):

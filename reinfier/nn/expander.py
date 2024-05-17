@@ -1,5 +1,5 @@
-from ..nn.NN import NN
-from ..import CONSTANT
+from ..common.NN import NN
+from ..import CONST
 from ..import util
 from .import onnx_runner
 from onnx import numpy_helper
@@ -47,7 +47,7 @@ def unroll_nn(network: NN, depth: int, branchable=False) -> NN:
     except onnx.checker.ValidationError as e:
         util.log('Original model is invalid: %s' % e)
     else:
-        util.log('Original model is valid!', level=CONSTANT.INFO)
+        util.log('Original model is valid!', level=CONST.INFO)
 
     graph = model.graph
     graph_node = graph.node
@@ -266,10 +266,10 @@ def unroll_nn(network: NN, depth: int, branchable=False) -> NN:
     try:
         onnx.checker.check_model(model)
     except onnx.checker.ValidationError as e:
-        util.log('Expanded model is invalid: %s' % e, level=CONSTANT.CRITICAL)
+        util.log('Expanded model is invalid: %s' % e, level=CONST.CRITICAL)
         error = True
     else:
-        util.log('Expanded model is valid!', level=CONSTANT.INFO)
+        util.log('Expanded model is valid!', level=CONST.INFO)
 
     path = util.lib.get_savepath(filename, depth, "onnx")
     util.log(path)
@@ -282,5 +282,5 @@ def unroll_nn(network: NN, depth: int, branchable=False) -> NN:
             [[1.0] * graph_input_length * depth], dtype=np.float32))
         return NN(path)
     except Exception as e:
-        util.log(e, level=CONSTANT.WARNING)
+        util.log(e, level=CONST.WARNING)
         return NN(None)

@@ -1,4 +1,4 @@
-from ..drlp.DRLP import DRLP
+from ..common.DRLP import DRLP
 from ..import drlp
 from ..import util
 from typing import List, Tuple

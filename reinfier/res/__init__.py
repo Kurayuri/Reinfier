@@ -1,6 +1,6 @@
 """Reinfier.Test Sample"""
-from ..nn.NN import NN
-from ..drlp.DRLP import DRLP
+from ..common.NN import NN
+from ..common.DRLP import DRLP
 import os
 
 

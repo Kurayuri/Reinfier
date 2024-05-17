@@ -1,6 +1,6 @@
 from .error import *
 from .import auxiliary
-from .Feature import Dynamic, Static
+from ..common.Feature import Dynamic, Static
 import astor
 import copy
 import ast

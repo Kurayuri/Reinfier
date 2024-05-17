@@ -1,4 +1,4 @@
-from .. import CONSTANT
+from .. import CONST
 from .. import Setting
 import os
 import time
@@ -31,20 +31,20 @@ def get_savepath_container(basename=None, extension=None):
     return os.path.join(Setting.ContainerTmpPath,filename)
 
 
-def log(*args, level=CONSTANT.DEBUG, style=CONSTANT.STYLE_RESET,end:str="\n"):
+def log(*args, level=CONST.DEBUG, style=CONST.STYLE_RESET,end:str="\n"):
     if len(args) == 1 and (isinstance(args[0], tuple) or isinstance(args[0], list)):
         args = args[0]
     if level >= Setting.LogLevel:
-        print(style+" ".join(map(str, args))+CONSTANT.STYLE_RESET,end=end)
+        print(style+" ".join(map(str, args))+CONST.STYLE_RESET,end=end)
 
 
-def log_prompt(prompt_level: int, text="",level=CONSTANT.WARNING,style=CONSTANT.STYLE_RESET):
+def log_prompt(prompt_level: int, text="",level=CONST.WARNING,style=CONST.STYLE_RESET):
     prompt_lens=[60,60,80,80,120]
     prompts=[".","*","#","-","="]
 
 
     if prompt_level == 1:
-        log(("*" * prompt_lens[prompt_level]), level=CONSTANT.INFO,style=style)
+        log(("*" * prompt_lens[prompt_level]), level=CONST.INFO,style=style)
     elif prompt_level == 2:
         log(("\n\n" + "#" * prompt_lens[prompt_level] + "\n" + "#" * prompt_lens[prompt_level]), level=level,style=style)
     elif prompt_level == 3:
@@ -61,9 +61,9 @@ def log_prompt(prompt_level: int, text="",level=CONSTANT.WARNING,style=CONSTANT.
 
 
 def confirm_input(text,itype):
-    if itype == CONSTANT.INTERACTIVE_ITYPE_y_or_N:
-        log(text,level=CONSTANT.CRITICAL)
-        log(f"Proceed ({CONSTANT.INTERACTIVE_ITYPE_y_or_N})?",level=CONSTANT.CRITICAL,end=" ")
+    if itype == CONST.INTERACTIVE_ITYPE_y_or_N:
+        log(text,level=CONST.CRITICAL)
+        log(f"Proceed ({CONST.INTERACTIVE_ITYPE_y_or_N})?",level=CONST.CRITICAL,end=" ")
         response=input().strip().lower()
         if response == "y" or response == "yes":
             return True

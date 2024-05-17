@@ -1,6 +1,6 @@
-from ...drlp.DNNP import DNNP
-from ...nn.NN import NN
-from ...import CONSTANT
+from ...common.DNNP import DNNP
+from ...common.NN import NN
+from ...import CONST
 from ...import Setting
 from ...import util
 from ...import nn
@@ -21,21 +21,21 @@ def is_to_retry(txt: str):
 
 
 def log_output(stdout, stderr, ans_gotten):
-    if Setting.LogLevel == CONSTANT.DEBUG:
-        util.log(("## Error:"), level=CONSTANT.INFO)
-        util.log(("\n".join(stderr)), level=CONSTANT.DEBUG)
-        util.log(("## Info:"), level=CONSTANT.INFO)
-        util.log(("\n".join(stdout)), level=CONSTANT.DEBUG)
+    if Setting.LogLevel == CONST.DEBUG:
+        util.log(("## Error:"), level=CONST.INFO)
+        util.log(("\n".join(stderr)), level=CONST.DEBUG)
+        util.log(("## Info:"), level=CONST.INFO)
+        util.log(("\n".join(stdout)), level=CONST.DEBUG)
 
     else:
         if ans_gotten:
-            util.log(("## Info:"), level=CONSTANT.INFO)
-            util.log(("\n".join(stdout[:-4])), level=CONSTANT.DEBUG)
-            util.log(("\n".join(stdout[-4:])), level=CONSTANT.INFO)
+            util.log(("## Info:"), level=CONST.INFO)
+            util.log(("\n".join(stdout[:-4])), level=CONST.DEBUG)
+            util.log(("\n".join(stdout[-4:])), level=CONST.INFO)
         else:
-            util.log(("## Error:"), level=CONSTANT.INFO)
-            util.log(("\n".join(stderr[:-5])), level=CONSTANT.DEBUG)
-            util.log(("\n".join(stderr[-5:])), level=CONSTANT.INFO)
+            util.log(("## Error:"), level=CONST.INFO)
+            util.log(("\n".join(stderr[:-5])), level=CONST.DEBUG)
+            util.log(("\n".join(stderr[-5:])), level=CONST.INFO)
 
 
 def extract_stdout_ans(stdout):
@@ -74,7 +74,7 @@ def boot(network: NN, property: DNNP, violation: str = None) -> Tuple[bool, bool
     network_path = network.path
     property_path = property.path
 
-    containor_name = Setting.ContainerNames[CONSTANT.VERISIG]
+    containor_name = Setting.ContainerNames[CONST.VERISIG]
 
     if violation is None:
         violation_path = util.lib.get_savepath([network_path, property_path], None, "npy")
@@ -111,8 +111,8 @@ def boot(network: NN, property: DNNP, violation: str = None) -> Tuple[bool, bool
 
     while True:
         util.log_prompt(1)
-        util.log("Single DNN Query Verifying...", level=CONSTANT.INFO)
-        util.log((" ".join(cmd_readable)), level=CONSTANT.INFO)
+        util.log("Single DNN Query Verifying...", level=CONST.INFO)
+        util.log((" ".join(cmd_readable)), level=CONST.INFO)
 
         try:
             exit_code, proc = dk.exec(containor_name, cmd)
@@ -123,7 +123,7 @@ def boot(network: NN, property: DNNP, violation: str = None) -> Tuple[bool, bool
                 # print(stdout)
                 util.log(stdout)
         except Exception as e:
-            util.log((e), level=CONSTANT.INFO)
+            util.log((e), level=CONST.INFO)
         # %% Check output
 
         time = float('inf')
@@ -142,27 +142,27 @@ def boot(network: NN, property: DNNP, violation: str = None) -> Tuple[bool, bool
             pass
 
         if to_retry:
-            util.log(("Retrying..."), level=CONSTANT.INFO)
+            util.log(("Retrying..."), level=CONST.INFO)
             continue
 
         # %% Check stdout
         ans_gotten, runable, result, time = extract_stdout_ans(stdout)
         log_output(stdout, stderr, ans_gotten)
 
-        util.log(("## Ans:"), level=CONSTANT.WARNING)
-        util.log(("Runable:", runable, "   Result:", result, "   Time:", time), level=CONSTANT.WARNING)
+        util.log(("## Ans:"), level=CONST.WARNING)
+        util.log(("Runable:", runable, "   Result:", result, "   Time:", time), level=CONST.WARNING)
 
         violation = None
         if runable == True:
             if result == False:
                 # violation = np.load(violation_path)
                 violation = None
-                util.log(("False"), level=CONSTANT.WARNING)
+                util.log(("False"), level=CONST.WARNING)
                 # nn.onnx_runner.run_onnx(network=network_path, input=violation)
             else:
-                util.log(("True"), level=CONSTANT.WARNING)
+                util.log(("True"), level=CONST.WARNING)
         else:
-            util.log(("Error"), level=CONSTANT.WARNING)
+            util.log(("Error"), level=CONST.WARNING)
         break
 
     util.log_prompt(2)

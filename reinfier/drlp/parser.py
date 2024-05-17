@@ -1,8 +1,10 @@
 from ..import util
-from .Feature import Dynamic, Static
+from ..common.Feature import Dynamic, Static
 from .DRLPTransformer import *
-from .DRLP import DRLP
-from .DNNP import DNNP
+from ..common.DRLP import DRLP
+from ..common.DNNP import DNNP
+from ..common.type_aliases import PropertyFeatures
+
 from .lib import *
 from typing import List, Tuple, Dict
 import astpretty
@@ -128,7 +130,7 @@ def parse_drlps_v(property: DRLP, to_filter_unused_variables: bool = True) -> Li
     return property_pqs
 
 
-def parse_drlp_get_constraint(property: DRLP) -> Tuple[DRLP, Tuple[Dict[int, Dynamic], Dict[int, Dynamic]], Tuple[Dict[int, Static], Dict[int, Static]]]:
+def parse_drlp_get_constraint(property: DRLP) -> Tuple[DRLP, PropertyFeatures, PropertyFeatures]:
     if isinstance(property, DNNP):
         return property
     filename, drlp_vpq = read_drlp(property)
@@ -154,7 +156,7 @@ def parse_drlp_get_constraint(property: DRLP) -> Tuple[DRLP, Tuple[Dict[int, Dyn
         DRLPTransformer_Boundary(input_size, output_size), (ast_root_p, ast_root_q))
 
     drlp_pqi = make_pq(ast_root_p, ast_root_q)
-    return DRLP(drlp_pqi, filename=filename), (transformer.input_dynamics, transformer.output_dynamics), (transformer.input_statics, transformer.output_statics)
+    return DRLP(drlp_pqi, filename=filename), PropertyFeatures(transformer.input_dynamics, transformer.output_dynamics), PropertyFeatures(transformer.input_statics, transformer.output_statics)
 
 
 def parse_constaint_to_code(property: DRLP, dynamics, statics) -> str:
