@@ -13,7 +13,7 @@ requires-python = ">=3.10"
 keywords = ["DRL", "DNN", "verification","interpretation"]
 
 dependencies = [
-    "onnxruntime>=1.11.0",
+    "onnxruntime>=1.17.0",
     "onnx>=1.16.0",
     "astpretty>=2.1.0",
     "astor>=0.8.1",
