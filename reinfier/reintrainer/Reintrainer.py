@@ -8,7 +8,7 @@ import enum
 from collections import namedtuple
 from typing import Callable, Dict, List, Set, Union, Tuple, Iterable, Sequence
 from ..import nn
-from ..import alg
+from ..import algo
 from ..import util
 from ..import drlp
 from ..import Protocal
@@ -54,14 +54,6 @@ class Reintrainer:
     '''
     Flag = ReintrainerFlag
 
-    # FLAG_OFF = 0b000000  # Flag no
-    # FLAG_AUTOGEN = 0b000001  # Flag
-    # REWARD_API_FLAG_VIOL = 0b000010  # Flag
-    # REWARD_API_FLAG_DIST = 0b000100  # Flag
-    # REWARD_API_FLAG_DENS = 0b001000  # Flag
-    # REWARD_API_FLAG_TRAC = 0b010000  # Flag
-    # REWARD_API_FLAG_ALL = 0b111111  # Flag
-
     GET_REWARD_FUNC_PARA_REWARD_ID = "reward"
 
     REWARD_API_FILENAME = "reward_api.py"
@@ -72,8 +64,6 @@ class Reintrainer:
     HP_REWARD_CONST = "PD"
     HP_REWARD_TRACE_GAMME = "REWARD_TRACE_GAMME"
     HP_REWARD_TRACE_DEPTH = "REWARD_TRACE_DEPTH"
-
-    # MODULES = ["生成、验证（验证后反例输入、验证后环境分布改变细分、验证后初始状态细分）、训练（主动添加触发情况）、测试（课程学习）"]
 
     def __init__(self, properties: Sequence[DRLP],
                  train_api: Callable | str,
@@ -471,7 +461,7 @@ y_size = {output_size}
 y_base-y_eps<=y[0][0]<=y_base+y_eps
     '''
             property = DRLP(src).set_values(values)
-            bps = alg.search_breakpoints(
+            bps = algo.search_breakpoints(
                 network, property, kwargs, 0.01, self.verifier, k_max=1, to_induct=False)
             inline_bps, inline_bls = interpretor.analyze_break_points(bps)
             answer, __, __ = interpretor.answer_importance_analysis(inline_bps)
@@ -576,7 +566,7 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
             for property in self.properties:
                 # TODO
                 # ans = alg.verify(network, property, verifier=self.verifier, to_induct=True)
-                ans = alg.verify(network, property, verifier=self.verifier,
+                ans = algo.verify(network, property, verifier=self.verifier,
                                  to_induct=False, k_max=1, reachability=False)
                 verification_results.append(ans)
 
@@ -713,14 +703,3 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
             else:
                 gapFtr.lower -= 1
                 gapFtr.upper += 1
-        interface
-
-
-def natural_sort(l):
-    def convert(text): return int(text) if text.isdigit() else text.lower()
-
-    def alphanum_key(key): return [convert(c)
-                                   for c in re.split('([0-9]+)', key)]
-    return sorted(l, key=alphanum_key)
-
-# %%

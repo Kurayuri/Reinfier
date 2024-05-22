@@ -4,7 +4,7 @@ from ...import CONST
 from ...import Setting
 from ...import util
 from ...import nn
-from ..import dk
+from .. import docker
 from typing import Tuple
 import numpy as np
 import subprocess
@@ -86,7 +86,7 @@ def boot(network: NN, property: DNNP, violation: str = None) -> Tuple[bool, bool
     network.to_yaml()
     network_path=util.lib.get_savepath_container("network", "yml")
 
-    dk.write_in(containor_name,network.to_yaml(), network_path)
+    docker.write_in(containor_name,network.to_yaml(), network_path)
 
     executable = [           
             "/home/tmp/flowstar",
@@ -115,7 +115,7 @@ def boot(network: NN, property: DNNP, violation: str = None) -> Tuple[bool, bool
         util.log((" ".join(cmd_readable)), level=CONST.INFO)
 
         try:
-            exit_code, proc = dk.exec(containor_name, cmd)
+            exit_code, proc = docker.exec(containor_name, cmd)
             stdout = []
             stderr = []
             for chunk in proc:

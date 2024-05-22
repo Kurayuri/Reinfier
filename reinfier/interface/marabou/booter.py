@@ -7,7 +7,7 @@ from ...import Setting
 from ...import util
 from ...import drlp
 from ...import nn
-from ..import dk
+from ..docker import docker
 from typing import Tuple, Dict
 import numpy as np
 import subprocess
@@ -78,7 +78,7 @@ def boot(network: NN,
         _violation_path = violation_path
         violation_path = os.path.join(save_dirpath,
                                       os.path.basename(violation_path))
-        dk.copy_in(containor_name, [network.path, property.path], save_dirpath)
+        docker.copy_in(containor_name, [network.path, property.path], save_dirpath)
     else:
         network_path = network.path
         property_path = property.path

@@ -4,7 +4,7 @@ from ...import CONST
 from ...import Setting
 from ...import util
 from ...import nn
-from ..import dk
+from .. import docker
 import os
 from typing import Tuple
 import numpy as np
@@ -112,7 +112,7 @@ def boot(network: NN, property: DNNP, verifier: str,
         property_path = os.path.join(save_dirpath, os.path.basename(property.path))
         _violation_path = violation_path
         violation_path = os.path.join(save_dirpath, os.path.basename(violation_path))
-        dk.copy_in(containor_name, [network.path, property.path], save_dirpath)
+        docker.copy_in(containor_name, [network.path, property.path], save_dirpath)
     else:
         network_path = network.path
         property_path = property.path
@@ -151,7 +151,7 @@ def boot(network: NN, property: DNNP, verifier: str,
 
         if run_dk:
             try:
-                exit_code, proc = dk.exec(containor_name, cmd)
+                exit_code, proc = docker.exec(containor_name, cmd)
                 stdout = []
                 stderr = []
                 for chunk in proc:
@@ -210,7 +210,7 @@ def boot(network: NN, property: DNNP, verifier: str,
         if runable == True:
             if result == False:
                 if run_dk:
-                    dk.copy_out(containor_name, violation_path, Setting.TmpPath)
+                    docker.copy_out(containor_name, violation_path, Setting.TmpPath)
                     violation_path = _violation_path
                     network_path = network.path
                 violation = np.load(violation_path)
