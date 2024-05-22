@@ -4,6 +4,7 @@ import json
 import copy
 import subprocess
 import numpy as np
+import enum
 from collections import namedtuple
 from typing import Callable, Dict, List, Set, Union, Tuple, Iterable, Sequence
 from ..import nn
@@ -16,7 +17,7 @@ from ..import CONST
 from ..import interpretor
 from ..import interface
 from ..util.TimerGroup import TimerGroup
-from ..common.Feature import Dynamic, Static, Feature
+from ..common.Feature import Dynamic, Static, Feature, Interval
 from ..common.DRLP import DRLP
 from ..common.NN import NN
 from ..common.type_aliases import PropertyFeatures, WhichFtr
@@ -33,17 +34,33 @@ def choose_curriculum():
 PropertyFeatures = namedtuple('PropertyFeatures', ['input', 'output'])
 
 
+class ReintrainerFlag(enum.Flag):
+    OFF = 0
+    GEN = enum.auto()
+    VIOL = enum.auto()
+    DIST = enum.auto()
+    DENS = enum.auto()
+    GAP = enum.auto()
+    TRAC = enum.auto()
+    ALL = ~0
+
+
+Flag = ReintrainerFlag
+
+
 class Reintrainer:
     '''
     Reintrainer: Property Training Framework for Reinforcement Learning
     '''
-    FLAG_AUTOGEN = 0b000001
-    FLAG_OFF = 0b000000
-    REWARD_API_FLAG_VIOL = 0b000011
-    REWARD_API_FLAG_DIST = 0b000111
-    REWARD_API_FLAG_DENS = 0b001011
-    REWARD_API_FLAG_TRAC = 0b010011
-    REWARD_API_FLAG_ALL = 0b111111
+    Flag = ReintrainerFlag
+
+    # FLAG_OFF = 0b000000  # Flag no
+    # FLAG_AUTOGEN = 0b000001  # Flag
+    # REWARD_API_FLAG_VIOL = 0b000010  # Flag
+    # REWARD_API_FLAG_DIST = 0b000100  # Flag
+    # REWARD_API_FLAG_DENS = 0b001000  # Flag
+    # REWARD_API_FLAG_TRAC = 0b010000  # Flag
+    # REWARD_API_FLAG_ALL = 0b111111  # Flag
 
     GET_REWARD_FUNC_PARA_REWARD_ID = "reward"
 
@@ -52,11 +69,11 @@ class Reintrainer:
     HP_NORM_P1 = "NORM_P1"
     HP_NORM_P2 = "NORM_P2"
     HP_ALPHA = "ALPHA"
-    HP_PD = "PD"
+    HP_REWARD_CONST = "PD"
     HP_REWARD_TRACE_GAMME = "REWARD_TRACE_GAMME"
     HP_REWARD_TRACE_DEPTH = "REWARD_TRACE_DEPTH"
 
-    MODULES = ["生成、验证（验证后反例输入、验证后环境分布改变细分、验证后初始状态细分）、训练（主动添加触发情况）、测试（课程学习）"]
+    # MODULES = ["生成、验证（验证后反例输入、验证后环境分布改变细分、验证后初始状态细分）、训练（主动添加触发情况）、测试（课程学习）"]
 
     def __init__(self, properties: Sequence[DRLP],
                  train_api: Callable | str,
@@ -72,8 +89,9 @@ class Reintrainer:
                  time_log_filename: str = "time.log",
                  hyperparameters: dict = {},
                  curriculum_api: Callable = None,
-                 flag: int = REWARD_API_FLAG_ALL,
-                 gap_features: Dict[int, Tuple[str, int]] = {}
+                 flag: Flag = Flag.ALL,
+                 gap_features: Dict[int, Tuple[str, int]] = {},
+                 observation_space: Sequence[Tuple[int, int]] = []
                  ):
         # Proeprty
         self.properties = properties
@@ -90,11 +108,12 @@ class Reintrainer:
             else:
                 self.gap_features[idx] = (Protocal.DNNP.Input.Id, 0)
 
+        self.observation_space = [Interval(*x) for x in observation_space]
+
         # Hyperparameter
         self.HPS = {self.HP_NORM_P1: 1,
                     self.HP_NORM_P2: 2,
                     self.HP_ALPHA: 20,
-                    self.HP_PD: -4.5,
                     self.HP_REWARD_TRACE_DEPTH: 20,
                     self.HP_REWARD_TRACE_GAMME: 0.9
                     }
@@ -115,7 +134,7 @@ class Reintrainer:
                 self.reward_api = self.REWARD_API_FILENAME
         if self.reward_api is None:
             # TODO
-            self.flag = self.FLAG_OFF
+            self.flag = Flag.OFF
 
         # Resume
         self.save_dirpath = save_dirpath
@@ -168,8 +187,11 @@ class Reintrainer:
 
         # self.model_select = 'latest'
     def __del__(self):
-        for logger in self.loggers:
-            logger.close()
+        try:
+            for logger in self.loggers:
+                logger.close()
+        except:
+            pass
 
     def train(self, round: int, cycle: int):
 
@@ -189,6 +211,8 @@ class Reintrainer:
         self.timerGroup.reset()
         self.timerGroup.start()
         for self.round in range(self.round + 1, self.round + 1 + round):
+            if Flag.GAP in self.Flag:
+                self.HPS[self.HP_ALPHA] /= 2
             util.log_prompt(4, "Round %03d" % self.round, style=CONST.STYLE_CYAN)
 
             self.next_model_dirpath = self.make_next_model_dir(self.round)
@@ -255,7 +279,7 @@ class Reintrainer:
         self.log_result(self.verification_results, test_result)
 
     def _generate_constraint(self):
-        if not (self.flag & self.FLAG_AUTOGEN):
+        if Flag.GEN not in self.flag:
             return
 
         for i in range(len(self.properties)):
@@ -272,7 +296,7 @@ class Reintrainer:
         return code
 
     def generate_reward(self, to_append: bool = True):
-        if not (self.flag & self.FLAG_AUTOGEN):
+        if Flag.GEN not in self.flag:
             return
 
         mode = "a+" if to_append else "w"
@@ -304,11 +328,12 @@ class Reintrainer:
             # ###########
 
             # Not first round and rho
-            if self.curr_model_dirpath and (self.flag & self.REWARD_API_FLAG_DENS):
+            inputFtrs = {**dynamics, **statics}
+            if self.curr_model_dirpath and (Flag.DENS in self.flag):
                 network = NN(self.curr_model_path)
                 for idx, dynamic in dynamics.items():
-                    dynamic.lower_rho = self.measure_rho(network, dynamics, statics, idx, "Lower")
-                    dynamic.upper_rho = self.measure_rho(network, dynamics, statics, idx, "Upper")
+                    dynamic.lower_rho = self.measure_rho(network, inputFtrs, idx, "Lower")
+                    dynamic.upper_rho = self.measure_rho(network, inputFtrs, idx, "Upper")
                     dynamic.weight = (dynamic.lower_rho + dynamic.upper_rho) / 2
 
             util.log("Importance Weight:", {idx: dynamic.weight for idx, dynamic in dynamics.items(
@@ -316,14 +341,24 @@ class Reintrainer:
 
             dist_srcs = []
 
-            sum_weight = 0
             for idx, dynamic in dynamics.items():
                 mid = (dynamic.lower_rho * dynamic.lower + dynamic.upper_rho *
                        dynamic.upper) / (dynamic.lower_rho + dynamic.upper_rho)
-                src = f"dists_x[{idx}] = {dynamic.weight}*dist(x[0][{idx}],{dynamic.lower},{dynamic.upper},{mid})"
+
+                # # Edge condition
+                # if len(inputFtrs) == len(self.observation_space):
+                #     if dynamic.lower == self.observation_space[idx].lower:
+                #         mid = dynamic.lower
+                #     if dynamic.upper == self.observation_space[idx].upper:
+                #         mid = dynamic.upper
+                #     if dynamic.lower == self.observation_space[idx].lower and dynamic.upper == self.observation_space[idx].upper:
+                #         continue
+
+                src = f"dists_x[{idx}] = dist(x[0][{idx}], {dynamic.lower}, {dynamic.upper}, {mid}, {dynamic.lower_rho}, {dynamic.upper_rho})"
                 dist_srcs.append(src)
 
-                sum_weight += dynamic.weight
+            # TODO
+            # dist_srcs.pop(0)
 
             code_get_reward = f'''
 def {Protocal.API.Reward.GetReward.Id}({Protocal.API.Reward.GetReward.Param.Observation.Id}, {Protocal.API.Reward.GetReward.Param.Action.Id}, {Protocal.API.Reward.GetReward.Param.Reward.Id}, {Protocal.API.Reward.GetReward.Param.Violated.Id}):
@@ -331,28 +366,27 @@ def {Protocal.API.Reward.GetReward.Id}({Protocal.API.Reward.GetReward.Param.Obse
     p2 = {self.HPS[self.HP_NORM_P2]}
     alpha = {self.HPS[self.HP_ALPHA]}
         
-    def dist(val,lower, upper, mid):
+    def dist(val, lower, upper, mid, lower_rho, upper_rho):
         if val > upper or val < lower:
-            return 0
+            return 0, 0
 
         if val > mid:
-            return {'((upper-val)/(upper-mid))**p1' if self.flag & self.REWARD_API_FLAG_DENS else 'upper-val'}
+            return {'((upper-val)/(upper-mid))**p1' if Flag.DENS in self.flag else 'upper-val'}, upper_rho
         else:
-            return {'((val-lower)/(mid-lower))**p1'  if self.flag & self.REWARD_API_FLAG_DENS else 'val-lower'}
+            return {'((val-lower)/(mid-lower))**p1' if Flag.DENS in self.flag  else 'val-lower'}, lower_rho
 
     if {Protocal.API.Reward.GetReward.Param.Violated.Id}:
         dists_x = dict()
 ''' + "".join(["        " + srs + "\n" for srs in dist_srcs]) + f'''
-        sum_1 = sum([dist**p2 for dist in dists_x.values()])
-        sum_2 = {sum_weight}
+        sum_1 = sum([dist[1]*(dist[0]**p2) for dist in dists_x.values()])
+        sum_2 = sum([dist[1] for dist in dists_x.values()])
         Dist_x = (sum_1)**(1/p2)/sum_2
         Fs = - 1 * Dist_x
-        # reward = reward + Fs * alpha
-        reward = reward + {self.HPS[self.HP_PD]}
+        reward = reward + {'Fs * alpha' if self.HP_REWARD_CONST not in self.HPS else self.HPS[self.HP_REWARD_CONST]}
     else:
         reward = reward
     return reward
-'''
+''' if Flag.DIST in self.flag else Protocal.API.Reward.GetReward.Template
             return code_get_reward
 
 #         def nogen():
@@ -386,7 +420,7 @@ def {Protocal.API.Reward.GetReward.Id}({Protocal.API.Reward.GetReward.Param.Obse
 
         return code_get_reward
 
-    def measure_rho(self, network: NN, dynamics: Sequence[Dynamic], statics: Sequence[Static], index: int, lower_or_upper: str):
+    def measure_rho(self, network: NN, inputFtrs: Dict[int, Feature], index: int, lower_or_upper: str):
         util.log("Dynamic", index, level=CONST.INFO)
 
         is_lower = lower_or_upper[0].lower() == "l"
@@ -394,10 +428,8 @@ def {Protocal.API.Reward.GetReward.Id}({Protocal.API.Reward.GetReward.Param.Obse
         input_size, output_size = network.size()
 
         x_base = [[0 for i in range(input_size)]]
-        for idx, dynamic in dynamics.items():
-            x_base[0][idx] = dynamic.lower if is_lower else dynamic.upper
-        for idx, static in statics.items():
-            x_base[0][idx] = static.lower if is_lower else static.upper
+        for idx, ftr in inputFtrs.items():
+            x_base[0][idx] = ftr.lower if is_lower else ftr.upper
 
         def verification():
             logLevel = Setting.set_LogLevel(CONST.CRITICAL)
@@ -448,16 +480,17 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
             return answer[0] if answer is not None else 1
 
         def grad():
+
             if is_lower:
-                lower = x_base[0][index] + INPUT_EPS_MIN
+                lower = x_base[0][index]
                 upper = x_base[0][index] + INPUT_EPS_MIN
             else:
                 lower = x_base[0][index] - INPUT_EPS_MIN
-                upper = x_base[0][index] + INPUT_EPS_MIN
+                upper = x_base[0][index]
 
             (max_sum, max_val), (min_sum, min_val) = interpretor.measure_sensitivity(network=network, input=x_base, index=(0, index),
                                                                                      lower=lower, upper=upper, precision=INPUT_EPS_PRECISION)
-            return abs(max_sum) if abs(max_sum) > abs(min_sum) else abs(min_sum)
+            return max(abs(max_sum), abs(min_sum))
         return grad()
 
     def call_train_api(self, **kwargs):
@@ -471,6 +504,8 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
                 kwargs["reward_api"] = self.reward_api
             if self.curr_model_dirpath:
                 kwargs["curr_model_dirpath"] = self.curr_model_dirpath
+            if Flag.TRAC in self.flag:
+                kwargs["enabled_trace"] = True
             self.train_api(**kwargs)
 
         elif isinstance(self.train_api, str) or \
@@ -484,6 +519,7 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
                 f"--next_model_dirpath {self.next_model_dirpath} " \
                 f"--reward_api         {self.reward_api} " if self.reward_api else "" \
                 f"--curr_model_dirpath {self.curr_model_dirpath}" if self.curr_model_dirpath else "" \
+                f"--enabled_trace      True" if Flag.TRAC in self.flag else "" \
                 ""
             cmd += cmd_suffix
 
@@ -635,9 +671,9 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
         util.log(constraint.obj)
 
         code = ""
-        if self.flag == self.FLAG_AUTOGEN:
+        if Flag.GEN in self.flag:
             code = Protocal.API.Reward.IsViolated.Template
-        elif self.flag & self.REWARD_API_FLAG_VIOL:
+        if Flag.VIOL in self.flag:
             code = drlp.parse_constaint_to_code(constraint, dynamics, statics)
         util.log("## Constraint Code:")
         util.log(code)

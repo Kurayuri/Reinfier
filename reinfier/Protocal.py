@@ -64,3 +64,7 @@ def {Id}({Param.Observation.Id}, {Param.Action.Id}):
             class Return:
                 class Reward:
                     Id = "reward"
+            Template = f'''
+def {Id}({Param.Observation.Id}, {Param.Action.Id}, {Param.Reward.Id}, {Param.Violated.Id}):
+    return {Param.Reward.Id}
+'''

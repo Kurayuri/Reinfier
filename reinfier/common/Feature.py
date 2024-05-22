@@ -4,6 +4,8 @@ SympyInterval = Interval
 
 
 class Interval:
+    EXPECTED_TYPE = int | float | None
+
     def __init__(
         self,
         lower: int | float | None = None,
@@ -11,8 +13,18 @@ class Interval:
         lower_closed: bool = True,
         upper_closed: bool = True
     ):
+        # if isinstance(lower, Interval.EXPECTED_TYPE):
+        #     self.lower = lower
+        # else:
+        #     raise TypeError(f"expected 'lower' to be of type {Interval.EXPECTED_TYPE}, got {type(lower).__name__}")
+        # if isinstance(upper, Interval.EXPECTED_TYPE):
+        #     self.upper = upper
+        # else:
+        #     raise TypeError(f"expected 'upper' to be of type {Interval.EXPECTED_TYPE}, got {type(upper).__name__}")
+
         self.lower = lower
         self.upper = upper
+
         self.lower_closed = lower_closed
         self.upper_closed = upper_closed
 
@@ -25,8 +37,8 @@ class Interval:
 
     @classmethod
     def from_sympy(cls, sympyInterval: SympyInterval):
-        return cls(sympyInterval.start if sympyInterval.start is not -oo else None,
-                   sympyInterval.end if sympyInterval.end is not oo else None)
+        return cls(float(sympyInterval.start) if sympyInterval.start is not -oo else None,
+                   float(sympyInterval.end) if sympyInterval.end is not oo else None)
 
 
 class Feature(Interval):

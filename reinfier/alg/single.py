@@ -24,7 +24,7 @@ def bmc(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_mi
         dnnp = drlp.parser.parse_vpq(property, k)[0]
 
         runable, result, time, violation = interface.dnnv.boot(dnn, dnnp, verifier) \
-            if verifier != CONST.MARABOU else interface.marabou.boot(dnn, property)
+            # if verifier != CONST.MARABOU else interface.marabou.boot(dnn, property)
 
         lib.log_call("base_ans", k, runable, result, time)
 
