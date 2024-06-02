@@ -1,47 +1,76 @@
-# Reinfier
-A general verification and interpretability framework for deep reinforcement learning, which combines the formal verification of deep neural network with bounded model checking algorithm and k-induction algorithm to verify the properties of deep reinforcement learning or give counterexamples.  
+# Reinfier & Reintrainer
+Reinfier is a general verifier and interpreter for deep reinforcement learning.  
+The verifer part combines the formal verification of deep neural network with bounded model checking algorithm and k-induction algorithm to verify the properties of deep reinforcement learning or give counterexamples. 
+
+
+The interpreter part
+
 Source code is available at [Reinfier](https://github.com/Kurayuri/Reinfier).
 ## Installation
+
+### Reinfier
+Required Python>=3.10.
+
+Reinfier are recommended to install with conda environment.
+
+```shell
+# Create a conda environment named reinfier
+conda create -n reinfier python
+
+# Activate the conda environment:
+conda activate reinfier
+```
+
+Install from PyPI:  
+```shell
+pip install reinfier
+```
+Or install from source:  
+```shell
+# Clone the repo
+git clone https://github.com/Kurayuri/Reinfier.git
+cd Reinfier
+
+# Install in editable mode
+pip install -e .
+```
+
+### Verification Backend
+#### DNNV
 Reinfier takes [DNNV](https://github.com/dlshriver/dnnv) as the external DNN verification framework now, which requrires verifiers of DNN ([Reluplex](https://github.com/guykatzz/ReluplexCav2017), [planet](https://github.com/progirep/planet), [MIPVerify.jl](https://github.com/vtjeng/MIPVerify.jl), [Neurify](https://github.com/tcwangshiqi-columbia/Neurify), [ERAN](https://github.com/eth-sri/eran), [BaB](https://github.com/oval-group/PLNN-verification), [marabou](https://github.com/NeuralNetworkVerification/Marabou), [nnenum](https://github.com/stanleybak/nnenum), [verinet](https://vas.doc.ic.ac.uk/software/neural/)).  
 
 For DRL verification, Reinfier now supports Marabou, Neurify, nnenum and Planet well. For DNN verifcation, Reinfier supports ones as same as DNNV.
 
-Building above verifers requires following packages of system:  
-```shell
-cmake
-python-is-python3
-python3.8-venv
-```
-
-DNNV and Reinfier are recommended to install with a python virtual environment.  
-```shell
-python -m venv testenv
-cd testenv
-source ./bin/activate
-```
-Currently, DNNV main branch on [PyPI](https://pypi.org/project/dnnv/0.5.1/) has bug caused by dependency. It is better to intall it from source code. Run:  
+Instal DNNV from source:  
 ```shell
 pip install git+https://github.com/dlshriver/DNNV.git@develop
 ```
-
+Or from docker:  
 ```shell
+# Pull DNNV image
 docker pull dlshriver/dnnv:latest
+
+# Create and start a conatiner named dnnv, and keep it running in background
 docker run --name dnnv dlshriver/dnnv:latest tail -f /dev/null
+
+# Start bash in the container
 docker exec -it dnnv bash
 ```
-
-
 
 To install any of the supported verifiers, run:
 ```shell
 dnnv_manage install reluplex planet mipverify neurify eran bab marabou nnenum verinet
 ```
 
-Reinfier requires python>=3.8. To install Reinfier, run:  
+#### Marabou
+Reinfier can also take [Marabou](https://github.com/NeuralNetworkVerification/Marabou) directly.
+
 ```shell
-pip install reinfier
+pip install maraboupy
 ```
 
+
+### Test Installation
 Usage sample files to test:  
 ```python
 import reinfier as rf
@@ -57,6 +86,7 @@ The result should be:
 which means the property is False (SAT, Invalid) with verification depth is 2, and a violation (counterexample) is given.
 
 ## Usage
+### Verification
 A **DRLP** object storing a property in DRLP format and an **NN** object storing an ONNX DNN are required for a basic DRL verification query in Reinfier.
 
 ```python
@@ -76,6 +106,11 @@ rf.k_induction(network, property) # k-induction algorithm
 # or
 rf.bmc(network, property) # bounded model checking algorithm
 ```
+
+### Interpretation
+
+
+### Training
 
 ## DRLP
 DRLP, i.e. Deep Reinforcement Learning Property, is a Pyhton-embedded DSL to describe property of DRL.

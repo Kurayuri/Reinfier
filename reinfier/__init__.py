@@ -5,9 +5,9 @@ from .reintrainer.Reintrainer import Reintrainer
 from .common.DNNP import DNNP
 from .common.DRLP import DRLP
 from .common.NN import NN
-from .algo import *
+from .verifier import *
 
-from .import algo
+from .import verifier
 from .import interface
 from .import drlp
 from .import interpretor

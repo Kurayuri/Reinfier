@@ -8,7 +8,7 @@ import enum
 from collections import namedtuple
 from typing import Callable, Dict, List, Set, Union, Tuple, Iterable, Sequence
 from ..import nn
-from ..import algo
+from ..import verifier
 from ..import util
 from ..import drlp
 from ..import Protocal
@@ -20,7 +20,7 @@ from ..util.TimerGroup import TimerGroup
 from ..common.Feature import Dynamic, Static, Feature, Interval
 from ..common.DRLP import DRLP
 from ..common.NN import NN
-from ..common.type_aliases import PropertyFeatures, WhichFtr
+from ..common.aliases import PropertyFeatures, WhichFtr
 # from bayes_opt import BayesianOptimization
 INPUT_EPS_MIN = 0.0
 INPUT_EPS_MAX = 0.2
@@ -461,7 +461,7 @@ y_size = {output_size}
 y_base-y_eps<=y[0][0]<=y_base+y_eps
     '''
             property = DRLP(src).set_values(values)
-            bps = algo.search_breakpoints(
+            bps = verifier.search_breakpoints(
                 network, property, kwargs, 0.01, self.verifier, k_max=1, to_induct=False)
             inline_bps, inline_bls = interpretor.analyze_break_points(bps)
             answer, __, __ = interpretor.answer_importance_analysis(inline_bps)
@@ -566,8 +566,8 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
             for property in self.properties:
                 # TODO
                 # ans = alg.verify(network, property, verifier=self.verifier, to_induct=True)
-                ans = algo.verify(network, property, verifier=self.verifier,
-                                 to_induct=False, k_max=1, reachability=False)
+                ans = verifier.verify(network, property, verifier=self.verifier,
+                                      to_induct=False, k_max=1, reachability=False)
                 verification_results.append(ans)
 
             anss = {'%02d' % i: verification_results[i][0]

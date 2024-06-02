@@ -1,7 +1,7 @@
 import copy
 
 from ..import Protocal
-from ..common.base_class import BaseObject
+from .base import BaseObject
 
 
 class DRLP(BaseObject):
@@ -38,7 +38,7 @@ class DRLP(BaseObject):
             return self.append(code)
 
     def append(self, code: str) -> str:
-        from . import lib
+        from ..drlp import lib
 
         drlp_v, drlp_pq = lib.split_drlp_vpq(self.obj)
         drlp_v += code
@@ -46,7 +46,8 @@ class DRLP(BaseObject):
         return self
 
     def overwrite(self, code: str) -> str:
-        from . import lib
+        from ..drlp import lib
+
 
         drlp_v, drlp_pq = lib.split_drlp_vpq(self.obj)
         drlp_v = code

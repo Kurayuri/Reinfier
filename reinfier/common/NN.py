@@ -1,5 +1,8 @@
 import onnx
-from .base_class import BaseObject
+import onnxruntime
+import numpy as np
+from .base import BaseObject
+from .aliases import *
 
 
 class NN(BaseObject):
@@ -11,7 +14,7 @@ class NN(BaseObject):
         if isinstance(arg, str):
             self.path = arg
             self.obj = onnx.load(arg)
-        elif isinstance(arg, onnx.onnx_ml_pb2.ModelProto):
+        elif isinstance(arg, ONNXModel):
             self.obj
             self.path = filename
         elif isinstance(arg, NN):
@@ -31,6 +34,15 @@ class NN(BaseObject):
                                    shape.dim[1].dim_value)
 
         return self.input_size, self.output_size
+
+    def run(self, input: str | np.ndarray) -> np.ndarray:
+        input_value = np.load(input) if isinstance(input, str) else input
+        input_value = input_value.astype(np.float32).reshape(1, -1)
+
+        session = onnxruntime.InferenceSession(self.obj.SerializeToString())
+        input_name = session.get_inputs()[0].name
+        output = session.run([], {input_name: input_value})[0]
+        return output
 
     def to_torch(self):
         import onnx2torch

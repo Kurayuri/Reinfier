@@ -1,4 +1,4 @@
-from ..common.base_class import BaseObject
+from .base import BaseObject
 
 class DNNP(BaseObject):
     def __init__(self, arg, filename="tmp.dnnp"):

@@ -14,9 +14,9 @@ def select_verifier(networks: Union[NN, List[NN]], properties: Union[DRLP, List[
     util.log("## Selecting verifier...", level=CONST.INFO)
     if verifiers is None:
         if Setting.ToTestAllVerifier:
-            verifiers = CONST.VERIFIERS
+            verifiers = CONST.DNNV_VERIFIERS
         else:
-            verifiers = CONST.RUNABLE_VERIFIERS
+            verifiers = CONST.DNNV_RUNABLE_VERIFIERS
     util.log("Runable verifiers:", level=CONST.INFO)
     util.log(verifiers, level=CONST.INFO)
 

@@ -197,7 +197,7 @@ def search_boundary_hypercubic(network: NN, property: DRLP, kwargs: dict, accura
 
 def search_breakpoints(network: NN, property: DRLP, kwargs: dict, default_precise: float = 1e-2, verifier: str = None,
                         k_max: int = 10, k_min: int = 1, to_induct: bool = True) -> List[Tuple[DRLP, Tuple[int, bool, numpy.ndarray]]]:
-    break_points = []
+    breakpoints = []
 
     def next(lb: float, ub: float, curr: float, prec: float, method: str, lb_ans=None, ub_ans=None, curr_ans=None):
 
@@ -244,7 +244,7 @@ def search_breakpoints(network: NN, property: DRLP, kwargs: dict, default_precis
             util.log("########## Search ##########", level=CONST.ERROR)
             util.log("Env  kwargs: ", _property.kwargs, level=CONST.ERROR)
             util.log("Curr kwarg:  ", _kwargs, level=CONST.ERROR)
-            util.log("Known break points:  ", break_points, level=CONST.ERROR)
+            util.log("Known breakpoints:  ", breakpoints, level=CONST.ERROR)
 
         _kwargs = deepcopy(_kwargs)
         var = list(_kwargs.keys())[0]
@@ -291,7 +291,7 @@ def search_breakpoints(network: NN, property: DRLP, kwargs: dict, default_precis
                 if method == "linear":
                     if prev_ans is None or ans[0] != prev_ans[0]:
                         prev_ans = ans
-                        break_points.append((_prop, ans))
+                        breakpoints.append((_prop, ans))
                         if skip:
                             break
 
@@ -302,17 +302,17 @@ def search_breakpoints(network: NN, property: DRLP, kwargs: dict, default_precis
 
             if curr is None:
                 if method == "linear":
-                    if prev_ans is not None and break_points is not None and \
-                            prev_ans != break_points[-1]:
-                        break_points.append((_prop, prev_ans))
+                    if prev_ans is not None and breakpoints is not None and \
+                            prev_ans != breakpoints[-1]:
+                        breakpoints.append((_prop, prev_ans))
                 elif method == "binary":
-                    break_points.append(init_lb_ans_set)
+                    breakpoints.append(init_lb_ans_set)
 
                     if init_lb_ans_set[1][0] != init_ub_ans_set[1][0]:
                         ans = (not init_lb_ans_set[1][0], ans[1], ans[2])
-                        break_points.append((_prop, ans))
-                    break_points.append(init_ub_ans_set)
+                        breakpoints.append((_prop, ans))
+                    breakpoints.append(init_ub_ans_set)
                 break
 
     search(property, kwargs)
-    return break_points
+    return breakpoints

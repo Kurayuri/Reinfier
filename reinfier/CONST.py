@@ -1,3 +1,5 @@
+from .common.base import BaseEnum
+
 DEBUG = 1
 INFO = 2
 WARNING = 3
@@ -5,22 +7,25 @@ ERROR = 4
 CRITICAL = 5
 
 DNNV = 'dnnv'
-BAB = 'bab'
-ERAN = 'eran'
-DNNV_MARABOU = 'dnnv_marabou'
-MIPVERIFY = 'mipverify'
-NEURIFY = 'neurify'
-NNENUM = 'nnenum'
-PLANET = 'planet'
-RELUPLEX = 'reluplex'
-VERINET = 'verinet'
-
 VERISIG = 'verisig'
 MARABOU = 'marabou'
 
 
-VERIFIERS = [BAB, ERAN, DNNV_MARABOU, MIPVERIFY, NEURIFY, NNENUM, PLANET, RELUPLEX, VERINET]
-RUNABLE_VERIFIERS = [DNNV_MARABOU, NEURIFY, NNENUM, PLANET]
+class DNNV_VERIFIER(BaseEnum):
+    BAB = 'dnnv_bab'
+    ERAN = 'dnnv_eran'
+    MARABOU = 'dnnv_marabou'
+    MIPVERIFY = 'dnnv_mipverify'
+    NEURIFY = 'dnnv_neurify'
+    NNENUM = 'dnnv_nnenum'
+    PLANET = 'dnnv_planet'
+    RELUPLEX = 'dnnv_reluplex'
+    VERINET = 'dnnv_verinet'
+
+
+DNNV_VERIFIERS = [DNNV_VERIFIER.BAB, DNNV_VERIFIER.ERAN, DNNV_VERIFIER.MARABOU, DNNV_VERIFIER.MIPVERIFY,
+                  DNNV_VERIFIER.NEURIFY, DNNV_VERIFIER.NNENUM, DNNV_VERIFIER.PLANET, DNNV_VERIFIER.RELUPLEX, DNNV_VERIFIER.VERINET]
+DNNV_RUNABLE_VERIFIERS = [DNNV_VERIFIER.MARABOU, DNNV_VERIFIER.NEURIFY, DNNV_VERIFIER.NNENUM, DNNV_VERIFIER.PLANET]
 
 STYLE_RED = "\033[31m"
 STYLE_GREEN = "\033[32m"

@@ -149,8 +149,8 @@ def boot(network: NN, property: DNNP, violation: str = None) -> Tuple[bool, bool
         ans_gotten, runable, result, time = extract_stdout_ans(stdout)
         log_output(stdout, stderr, ans_gotten)
 
-        util.log(("## Ans:"), level=CONST.WARNING)
-        util.log(("Runable:", runable, "   Result:", result, "   Time:", time), level=CONST.WARNING)
+        util.log("## Ans:", level=CONST.WARNING)
+        util.log("Runable:", runable, "   Result:", result, "   Time:", time, level=CONST.WARNING)
 
         violation = None
         if runable == True:

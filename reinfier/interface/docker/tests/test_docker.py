@@ -9,7 +9,6 @@ CONTAINER_NAME = 'dnnv'
 
 def test_exec():
     content = str(time.time())
-
     _, proc = docker.exec(CONTAINER_NAME, f"echo {content}")
     for chunk in proc:
         stdout, stderr = chunk

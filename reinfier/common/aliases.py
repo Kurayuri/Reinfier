@@ -1,5 +1,11 @@
-from typing import NamedTuple, Dict
+from typing import NamedTuple, Dict, IO
 from .Feature import Feature
+
+import os
+import onnx
+
+PathLike = IO | str | os.PathLike
+ONNXModel = onnx.onnx_ml_pb2.ModelProto
 
 
 class SearchConfig:

@@ -1,4 +1,4 @@
 """Reinfier.Algorithm"""
 
 from .single import *
-from .multi import *
+from .batch import *

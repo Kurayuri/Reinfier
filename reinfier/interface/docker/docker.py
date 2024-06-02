@@ -1,14 +1,14 @@
 import tarfile
-import docker
+import docker as _docker
 import io
 import os
 
 docker_containers = None
 
-
 def init():
+    global docker_containers
     if docker_containers is None:
-        client = docker.from_env()
+        client = _docker.from_env()
         docker_containers = client.containers
     return docker_containers
 

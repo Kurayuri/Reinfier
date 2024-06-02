@@ -1,6 +1,6 @@
 from ...common.NN import NN
 from ...common.DNNP import DNNP
-from ...import CONST
+from ... import CONST
 from ...import Setting
 from ...import util
 from ...import nn
@@ -97,7 +97,7 @@ def exec_docker(property_path, network_path):
     output_bytes = subprocess.run(cmd, capture_output=True, text=True)
 
 
-def boot(network: NN, property: DNNP, verifier: str,
+def boot(network: NN, property: DNNP, verifier: CONST.DNNV_VERIFIER,
          network_alias: str = "N", violation: str = None) -> Tuple[bool, bool, float, np.ndarray]:
 
     containor_name = Setting.ContainerNames[CONST.DNNV]
@@ -121,21 +121,21 @@ def boot(network: NN, property: DNNP, verifier: str,
             (property.obj is None and property.path is None):
         return (False, None, float('inf'), None)
 
-    verifier = verifier.lower()
-    if verifier not in CONST.VERIFIERS:
+    verifier = CONST.DNNV_VERIFIER(verifier)
+    if verifier not in CONST.DNNV_VERIFIERS:
         raise AssertionError(f"Unsupported verifier: {verifier}")
 
     executable = [". /home/dnnv/.venv/bin/activate && /home/dnnv/.venv/bin/dnnv"]
     cmd = executable + [
         property_path,
         "--network", network_alias, network_path,
-        f"--{verifier}",
+        f"--{verifier.raw_name}",
         "--save-violation", violation_path
     ]
     cmd_readable = executable + [
         f"'{property_path}'",
         "--network", network_alias, f"'{network_path}'",
-        f"--{verifier}",
+        f"--{verifier.raw_name}",
         "--save-violation", f"'{violation_path}'"
     ]
 
@@ -204,7 +204,7 @@ def boot(network: NN, property: DNNP, verifier: str,
         log_dnnv_output(stdout, stderr, ans_gotten)
 
         util.log(("## Ans:"), level=CONST.WARNING)
-        util.log(("Runable:", runable, "   Result:", result, "   Time:", time), level=CONST.WARNING)
+        util.log("Runable:", runable, "   Result:", result, "   Time:", time, level=CONST.WARNING)
 
         violation = None
         if runable == True:
