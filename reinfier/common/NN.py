@@ -1,8 +1,9 @@
 import onnx
 import onnxruntime
 import numpy as np
+from typing import Any
 from .base import BaseObject
-from .aliases import *
+from .aliases import ONNXModel, PathLike
 
 
 class NN(BaseObject):
@@ -35,9 +36,9 @@ class NN(BaseObject):
 
         return self.input_size, self.output_size
 
-    def run(self, input: str | np.ndarray) -> np.ndarray:
-        input_value = np.load(input) if isinstance(input, str) else input
-        input_value = input_value.astype(np.float32).reshape(1, -1)
+    def run(self, input: PathLike | np.ndarray | Any) -> np.ndarray:
+        input_value = np.load(input) if isinstance(input, PathLike) else input
+        input_value = np.array(input_value).astype(np.float32).reshape(1, -1)
 
         session = onnxruntime.InferenceSession(self.obj.SerializeToString())
         input_name = session.get_inputs()[0].name

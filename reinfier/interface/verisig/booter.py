@@ -77,14 +77,14 @@ def boot(network: NN, property: DNNP, violation: str = None) -> Tuple[bool, bool
     containor_name = Setting.ContainerNames[CONST.VERISIG]
 
     if violation is None:
-        violation_path = util.lib.get_savepath([network_path, property_path], None, "npy")
+        violation_path = util.io.get_savepath([network_path, property_path], None, "npy")
 
     if (network.obj is None and network.path is None) or \
             (property.obj is None and property.path is None):
         return (False, None, float('inf'), None)
     
     network.to_yaml()
-    network_path=util.lib.get_savepath_container("network", "yml")
+    network_path=util.io.get_savepath_container("network", "yml")
 
     docker.write_in(containor_name,network.to_yaml(), network_path)
 

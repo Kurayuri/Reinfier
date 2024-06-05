@@ -3,7 +3,7 @@ from ..common.Feature import Dynamic, Static
 from .DRLPTransformer import *
 from ..common.DRLP import DRLP
 from ..common.DNNP import DNNP
-from ..common.aliases import PropertyFeatures
+from ..common.classes import PropertyFeatures
 
 from .lib import *
 from typing import List, Tuple, Dict

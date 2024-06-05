@@ -1,13 +1,14 @@
 from ..common.DRLP import DRLP
+from ..common.classes import VerificationAnswer, Breakpoint
 from ..import drlp
 from ..import util
 from typing import List, Tuple
 import numpy
 
 
-def analyze_break_points(break_points: List[Tuple[DRLP, Tuple[int, bool, numpy.ndarray]]]) -> Tuple[List[List], List[List]]:
-    inline_break_lines = []
-    inline_break_points = []
+def analyze_breakpoints(breakpoints: List[Breakpoint]) -> Tuple[List[List], List[List]]:
+    inline_breaklines = []
+    inline_breakpoints = []
 
     def prt(src, dst: None, curr_break_lines, curr_break_points):
         if dst is None:
@@ -20,26 +21,22 @@ def analyze_break_points(break_points: List[Tuple[DRLP, Tuple[int, bool, numpy.n
                 util.log("Line Change: %5s -> %5s" % (src[1][0], dst[1][0]), src[0].kwargs, dst[0].kwargs)
                 curr_break_points.append((src[1][0], dst[1][0], dst[0].kwargs))
 
-    if len(break_points) == 1:
-        prt(break_points[0])
+    if len(breakpoints) == 1:
+        prt(breakpoints[0])
 
     curr_break_lines = []
     curr_break_points = []
-    inline_break_lines.append(curr_break_lines)
-    inline_break_points.append(curr_break_points)
+    inline_breaklines.append(curr_break_lines)
+    inline_breakpoints.append(curr_break_points)
 
-
-    for i in range(1, len(break_points)):
-
-        if list(break_points[i - 1][0].kwargs.items())[:-1] == list(break_points[i][0].kwargs.items())[:-1]:
-            # if break_points[i - 1][1][0] == break_points[i][1][0]:
-            prt(break_points[i - 1], break_points[i], curr_break_lines, curr_break_points)
+    for i in range(1, len(breakpoints)):
+        if list(breakpoints[i - 1].property.variables.items())[:-1] == list(breakpoints[i].property.variables.items())[:-1]:
+            prt(breakpoints[i - 1], breakpoints[i], curr_break_lines, curr_break_points)
         else:
             util.log("\nNew line:")
-
             curr_break_lines = []
             curr_break_points = []
-            inline_break_lines.append(curr_break_lines)
-            inline_break_points.append(curr_break_points)
+            inline_breaklines.append(curr_break_lines)
+            inline_breakpoints.append(curr_break_points)
 
-    return inline_break_points, inline_break_lines
+    return inline_breakpoints, inline_breaklines

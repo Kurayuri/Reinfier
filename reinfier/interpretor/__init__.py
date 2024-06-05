@@ -1,4 +1,4 @@
 """Reinfier.Interpretor"""
 
-from .lib import analyze_break_points
+from .lib import analyze_breakpoints
 from .solver import *

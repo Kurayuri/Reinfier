@@ -45,6 +45,7 @@ def select_verifier(networks: Union[NN, List[NN]], properties: Union[DRLP, List[
     status = {}
     num = len(networks)
     for verifier in verifiers:
+        verifier = verifier.raw_name
         util.log(("Testing...", verifier), level=CONST.ERROR)
         status[verifier] = {
             "runable": True,

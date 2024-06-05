@@ -1,14 +1,15 @@
+from __future__ import annotations
 import copy
-
+from typing import Dict, Any
 from ..import Protocal
 from .base import BaseObject
 
 
 class DRLP(BaseObject):
-    def __init__(self, arg, kwargs: dict = {}, filename="tmp.drlp"):
+    def __init__(self, arg, variables: dict = {}, filename="tmp.drlp"):
         super().__init__(arg, filename)
 
-        self.kwargs = copy.deepcopy(kwargs)
+        self.variables = copy.deepcopy(variables)
 
         if isinstance(arg, str):
             try:
@@ -48,30 +49,29 @@ class DRLP(BaseObject):
     def overwrite(self, code: str) -> str:
         from ..drlp import lib
 
-
         drlp_v, drlp_pq = lib.split_drlp_vpq(self.obj)
         drlp_v = code
         self.obj = "\n".join((drlp_v,  Protocal.DRLP.Delimiter.Precondition, drlp_pq))
         return self
 
-    def set_kwarg(self, variable: str, value):
-        self = self.append(f"{variable}={value}")
-        self.kwargs[variable] = value
+    def set_variable(self, name: str, value) -> DRLP:
+        self = self.append(f"{name}={value}")
+        self.variables[name] = value
         return self
 
-    def set_kwargs(self, kwargs: dict):
+    def set_variables(self, variables: Dict[str, Any]) -> DRLP:
         code = ""
-        for k, v in kwargs.items():
+        for k, v in variables.items():
             code += f"{k}={v}\n"
         self = self.append(code)
-        self.kwargs = {**self.kwargs, **kwargs}
+        self.variables = {**self.variables, **variables}
         return self
 
-    def set_value(self, variable: str, value):
+    def set_value(self, variable: str, value) -> DRLP:
         self = self.append(f"{variable}={value}")
         return self
 
-    def set_values(self, kwargs: dict):
+    def set_values(self, kwargs: dict) -> DRLP:
         code = ""
         for k, v in kwargs.items():
             code += f"{k}={v}\n"
@@ -82,4 +82,4 @@ class DRLP(BaseObject):
         return f"{self.obj}"
 
     def __repr__(self):
-        return f"{self.path}#{self.kwargs}"
+        return f"{self.path}#{self.variables}"

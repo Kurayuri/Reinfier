@@ -104,10 +104,10 @@ def boot(network: NN, property: DNNP, verifier: CONST.DNNV_VERIFIER,
     run_dk = True
 
     if violation is None:
-        violation_path = util.lib.get_savepath([network.path, property.path], None, "npy")
+        violation_path = util.io.get_savepath([network.path, property.path], None, "npy")
 
     if run_dk:
-        save_dirpath = util.lib.get_savepath_container()
+        save_dirpath = util.io.get_savepath_container()
         network_path = os.path.join(save_dirpath, os.path.basename(network.path))
         property_path = os.path.join(save_dirpath, os.path.basename(property.path))
         _violation_path = violation_path

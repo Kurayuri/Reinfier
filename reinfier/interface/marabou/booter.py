@@ -66,11 +66,11 @@ def boot(network: NN,
     run_dk = False
 
     if violation is None:
-        violation_path = util.lib.get_savepath([network.path, property.path],
+        violation_path = util.io.get_savepath([network.path, property.path],
                                                None, "npy")
 
     if run_dk:
-        save_dirpath = util.lib.get_savepath_container()
+        save_dirpath = util.io.get_savepath_container()
         network_path = os.path.join(save_dirpath,
                                     os.path.basename(network.path))
         property_path = os.path.join(save_dirpath,

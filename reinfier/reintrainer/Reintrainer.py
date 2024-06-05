@@ -20,7 +20,7 @@ from ..util.TimerGroup import TimerGroup
 from ..common.Feature import Dynamic, Static, Feature, Interval
 from ..common.DRLP import DRLP
 from ..common.NN import NN
-from ..common.aliases import PropertyFeatures, WhichFtr
+from ..common.classes import PropertyFeatures, WhichFtr
 # from bayes_opt import BayesianOptimization
 INPUT_EPS_MIN = 0.0
 INPUT_EPS_MAX = 0.2
@@ -139,7 +139,7 @@ class Reintrainer:
             os.makedirs(self.save_dirpath)
         except BaseException:
             if not self.resumed:
-                if not util.lib.confirm_input(
+                if not util.io.confirm_input(
                         f"Detected save_path {self.save_dirpath} already exists, but Reintrainer does not start in resuming training mode.", itype=CONST.INTERACTIVE_ITYPE_y_or_N):
                     raise Exception("Exit")
 
@@ -463,7 +463,7 @@ y_base-y_eps<=y[0][0]<=y_base+y_eps
             property = DRLP(src).set_values(values)
             bps = verifier.search_breakpoints(
                 network, property, kwargs, 0.01, self.verifier, k_max=1, to_induct=False)
-            inline_bps, inline_bls = interpretor.analyze_break_points(bps)
+            inline_bps, inline_bls = interpretor.analyze_breakpoints(bps)
             answer, __, __ = interpretor.answer_importance_analysis(inline_bps)
             Setting.set_LogLevel(logLevel)
 

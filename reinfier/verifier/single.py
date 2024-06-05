@@ -1,3 +1,4 @@
+from ..common.classes import VerificationAnswer
 from ..common.DRLP import DRLP
 from ..common.NN import NN
 from ..import nn
@@ -10,7 +11,7 @@ from typing import Tuple
 import numpy
 
 
-def bmc(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1) -> Tuple[int, bool, numpy.ndarray]:
+def bmc(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1) -> VerificationAnswer:
     lib.log_call("bmc", network, property)
 
     if verifier is None:
@@ -34,7 +35,7 @@ def bmc(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_mi
     return True, k_max, violation
 
 
-def k_induction(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1) -> Tuple[int, bool, numpy.ndarray]:
+def k_induction(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1) -> VerificationAnswer:
     lib.log_call("k_induction", network, property)
 
     if verifier is None:
@@ -79,7 +80,25 @@ def reach(network: NN, property: DRLP, k_max: int = 10, k_min: int = 1):
     return result, 1, violation
 
 
-def verify(network: NN, property: DRLP, verifier: str = None, k_max: int = 10, k_min: int = 1, to_induct=True, reachability=False) -> Tuple[bool, int, numpy.ndarray]:
+def verify(network: NN, property: DRLP,
+           verifier: str = None, k_max: int = 10, k_min: int = 1, to_induct=True, reachability=False) -> VerificationAnswer:
+    """Verify a neural network against a given property using a specified verifier.
+
+    Args:
+        network (NN): The neural network to be verified.
+        property (DRLP): The property to verify against the neural network.
+        verifier (str, optional): The verifier to use for the verification process. Defaults to None.
+        k_max (int, optional): The maximum value of k for the verification process. Defaults to 10.
+        k_min (int, optional): The minimum value of k for the verification process. Defaults to 1.
+        to_induct (bool, optional): Flag to indicate if induction should be used. Defaults to True.
+        reachability (bool, optional): Flag to indicate if reachability analysis should be performed. Defaults to False.
+
+    Returns:
+        VerificationAnswer: The result of the verification process, including:
+            - result (bool): True if the property is verified, False otherwise.
+            - depth (int): The depth at which the verification process concluded.
+            - violation (np.ndarray): The array representing the violation if the property is not verified.
+    """
     if reachability:
         return reach(network, property, k_max=k_max, k_min=k_min)
     elif to_induct:

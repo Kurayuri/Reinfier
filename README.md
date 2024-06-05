@@ -100,17 +100,60 @@ property = rf.DRLP("/path/to/DRLP/file")
 # or
 property = rf.DRLP(DRLP_str)
 
-rf.verify(network, property) # Verify API (default k-induction algorithm, Recommended)
+# Verify API (default k-induction algorithm, Recommended)
+result = rf.verify(network, property)
 # or
-rf.k_induction(network, property) # k-induction algorithm 
+# k-induction algorithm 
+result = rf.k_induction(network, property) 
 # or
-rf.bmc(network, property) # bounded model checking algorithm
+# Bounded model checking algorithm
+result = rf.bmc(network, property) 
+# or
+# Reachability analysis algorithm
+result = rf.reachability(network, property)
 ```
 
 ### Interpretation
+```python
+# Set search keyword arguments
+kwargs = {
+    "a": {"lower_bound": -0.7,
+          "upper_bound": -0.3,
+          "precise": 0.02,
+          "method": "linear", },
+    "b": {"lower_bound": 1,
+          "upper_bound": 20,
+          "precise": 0.1,
+          "method": "binary", },
+}
+# Search breakpoints
+breakpoints = rf.search_breakpoints(network, property, kwargs)
 
+# Analyze breakpoints
+inline_breakpoints, inline_breaklines = rf.analyze_breakpoints(breakpoints)
+
+# Answer interpretability problems
+# Importance Analysis
+result = rf.interpreter.answer_importance_analysis(inline_breakpoints)
+# Sensitivity Analysis
+result = rf.interpreter.answer_sensitivity_analysis(inline_breakpoints)
+# Intuitiveness Examination
+result = rf.interpreter.answer_intuitiveness_examination(inline_breakpoints)
+# Counterfactual Explanation
+result = rf.interpreter.answer_counterfactual_explanation(inline_breakpoints)
+# Decision Boundary
+rf.interpreter.draw_decision_boundary(inline_breakpoints)
+```
 
 ### Training
+```python
+reintrainer = rf.Reintrainer(
+    [list_of_desired_DRLP_properties],
+    train_api)
+
+reintrainer.train(max_iterations)
+
+```
 
 ## DRLP
 DRLP, i.e. Deep Reinforcement Learning Property, is a Pyhton-embedded DSL to describe property of DRL.

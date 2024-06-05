@@ -39,7 +39,7 @@ def unroll_nn(network: NN, depth: int, branchable=False) -> NN:
     model = network.obj
     path = network.path
     origin_path = path
-    filename = util.lib.get_filename_from_path(path)
+    filename = util.io.get_filename_from_path(path)
 
     # Check the model
     try:
@@ -271,7 +271,7 @@ def unroll_nn(network: NN, depth: int, branchable=False) -> NN:
     else:
         util.log('Expanded model is valid!', level=CONST.INFO)
 
-    path = util.lib.get_savepath(filename, depth, "onnx")
+    path = util.io.get_savepath(filename, depth, "onnx")
     util.log(path)
     onnx.save(model, path)
 

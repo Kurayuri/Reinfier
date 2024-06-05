@@ -125,7 +125,7 @@ def save_dnnp(dnnp_root, filename, depth):
 
     code = format_dnnp(code)
 
-    path = util.lib.get_savepath(filename, depth, "dnnp")
+    path = util.io.get_savepath(filename, depth, "dnnp")
     with open(path, "w") as f:
         f.write(code)
     util.log("\n## DNNP Filename:", level=CONST.INFO)
@@ -154,7 +154,7 @@ def make_pq(ast_root_p, ast_root_q):
 def read_drlp(property: DRLP):
     path = property.path
     drlp_vpq = property.obj
-    filename = util.lib.get_filename_from_path(path)
+    filename = util.io.get_filename_from_path(path)
     return filename, drlp_vpq
 
 
